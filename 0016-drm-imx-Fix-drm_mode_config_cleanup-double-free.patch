@@ -1,7 +1,7 @@
-From 5d11671f2671a390bbd3a119969665a6f2dbdc45 Mon Sep 17 00:00:00 2001
+From edf11e9bd876ab8a4eca4e4dee87ddc28181d8a3 Mon Sep 17 00:00:00 2001
 From: Jookia <166291@gmail.com>
 Date: Sat, 7 Sep 2019 21:15:52 +1000
-Subject: [PATCH 16/22] drm/imx: Fix drm_mode_config_cleanup double free
+Subject: [PATCH 16/30] drm/imx: Fix drm_mode_config_cleanup double free
 
 I'm not exactly sure why this is happening.
 ---

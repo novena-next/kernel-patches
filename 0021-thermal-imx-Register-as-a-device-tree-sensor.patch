@@ -1,7 +1,7 @@
-From 0c707b703f318ec59961bfb9ffdb919f82156c06 Mon Sep 17 00:00:00 2001
+From 38944219f81b58977ad70df81a174b55ebb44d3a Mon Sep 17 00:00:00 2001
 From: Jookia <166291@gmail.com>
 Date: Mon, 16 Sep 2019 02:32:07 +1000
-Subject: [PATCH 21/22] thermal: imx: Register as a device tree sensor
+Subject: [PATCH 21/30] thermal: imx: Register as a device tree sensor
 
 In addition to the existing behaviour using cpufreq, the thermal driver
 now supports being used as a sensor in device tree thermal maps.

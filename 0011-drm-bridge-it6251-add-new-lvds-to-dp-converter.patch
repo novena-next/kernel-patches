@@ -1,7 +1,7 @@
-From 9c8040a9e57125021932c93485c7625ea2fe6d6a Mon Sep 17 00:00:00 2001
+From 8385c1ea161984849297eca985b805b8cd83652f Mon Sep 17 00:00:00 2001
 From: Sean Cross <xobs@kosagi.com>
 Date: Wed, 30 Dec 2015 12:19:59 +0800
-Subject: [PATCH 11/22] drm/bridge: it6251: add new lvds to dp converter
+Subject: [PATCH 11/30] drm/bridge: it6251: add new lvds to dp converter
 
 The IT6251 bridge chip can go from single-, dual-, or quad-lane LVDS to
 DisplayPort and Mini DisplayPort.

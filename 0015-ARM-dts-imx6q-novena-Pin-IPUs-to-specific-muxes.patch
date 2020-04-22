@@ -1,7 +1,7 @@
-From e41940549aeadd599719068bbab09c2662ccd06e Mon Sep 17 00:00:00 2001
+From d8672f90d8a489b2ec14e6743f09750b3ea1f61c Mon Sep 17 00:00:00 2001
 From: Jookia <166291@gmail.com>
 Date: Thu, 5 Sep 2019 23:39:22 +1000
-Subject: [PATCH 15/22] ARM: dts: imx6q-novena: Pin IPUs to specific muxes
+Subject: [PATCH 15/30] ARM: dts: imx6q-novena: Pin IPUs to specific muxes
 
 The i.MX6 Quad has two IPUs shared across LVDS, HDMI and MIPI.
 Spreading the dual-channel LVDS over both IPUs won't work,

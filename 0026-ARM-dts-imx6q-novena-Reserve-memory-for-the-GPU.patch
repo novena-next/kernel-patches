@@ -1,0 +1,36 @@
+From 911c65467c78679a6afdb7e9b16398a669c558b5 Mon Sep 17 00:00:00 2001
+From: Jookia <contact@jookia.org>
+Date: Thu, 26 Mar 2020 18:41:41 +1100
+Subject: [PATCH 26/30] ARM: dts: imx6q-novena: Reserve memory for the GPU
+
+This fixes X not working as etnaviv can't allocate memory.
+---
+ arch/arm/boot/dts/imx6q-novena.dts | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)
+
+diff --git a/arch/arm/boot/dts/imx6q-novena.dts b/arch/arm/boot/dts/imx6q-novena.dts
+index 06557f56858b..27aa1927b148 100644
+--- a/arch/arm/boot/dts/imx6q-novena.dts
++++ b/arch/arm/boot/dts/imx6q-novena.dts
+@@ -64,6 +64,18 @@
+ 	chosen {
+ 		stdout-path = &uart2;
+ 	};
++	reserved-memory {
++		#address-cells = <1>;
++		#size-cells = <1>;
++		ranges;
++
++		linux,cma {
++			compatible = "shared-dma-pool";
++			reusable;
++			size = <0x10000000>;
++			linux,cma-default;
++		};
++	};
+ 
+ 	backlight: backlight {
+ 		compatible = "pwm-backlight";
+-- 
+2.20.1
+

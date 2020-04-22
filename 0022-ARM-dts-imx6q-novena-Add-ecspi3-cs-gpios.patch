@@ -1,7 +1,7 @@
-From c441b59aff97c33c014e0c1c3731b18b61c5c279 Mon Sep 17 00:00:00 2001
+From f9b055a03d4d16eaf9c9a7b6d6451308fd8c2c69 Mon Sep 17 00:00:00 2001
 From: Jookia <166291@gmail.com>
 Date: Mon, 16 Sep 2019 02:32:48 +1000
-Subject: [PATCH 22/22] ARM: dts: imx6q-novena: Add ecspi3 cs-gpios
+Subject: [PATCH 22/30] ARM: dts: imx6q-novena: Add ecspi3 cs-gpios
 
 More than one SPI device is listed, so a cs-gpios entry is needed.
 

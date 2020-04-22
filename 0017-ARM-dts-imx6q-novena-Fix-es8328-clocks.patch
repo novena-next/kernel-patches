@@ -1,7 +1,7 @@
-From 2414089270226d4a104c415d4b3e24b56cee7ae2 Mon Sep 17 00:00:00 2001
+From 11fdca460f785a461ee102ea04331f929574cfdf Mon Sep 17 00:00:00 2001
 From: Jookia <166291@gmail.com>
 Date: Mon, 9 Sep 2019 06:01:12 +1000
-Subject: [PATCH 17/22] ARM: dts: imx6q-novena: Fix es8328 clocks
+Subject: [PATCH 17/30] ARM: dts: imx6q-novena: Fix es8328 clocks
 
 The clock configuration was wrong and failed to set the correct rates.
 

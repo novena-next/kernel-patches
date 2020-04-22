@@ -1,7 +1,7 @@
-From ea80f9d4c74ea3f3b216052a858611c5afad6018 Mon Sep 17 00:00:00 2001
+From 9f603a8223f1828332161d6fb8d78dd7846e75e7 Mon Sep 17 00:00:00 2001
 From: Jookia <166291@gmail.com>
 Date: Mon, 9 Sep 2019 21:24:02 +1000
-Subject: [PATCH 18/22] ASoC: fsl-asoc-card: Merge in imx-es8328 code
+Subject: [PATCH 18/30] ASoC: fsl-asoc-card: Merge in imx-es8328 code
 
 The imx-es8328 code hasn't worked for a long time.
 Instead of maintaining it, merge it in to the fsl-asoc-card driver.

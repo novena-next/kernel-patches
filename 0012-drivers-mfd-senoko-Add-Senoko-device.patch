@@ -1,7 +1,7 @@
-From 211225989f0390e2c65f699ab43faa74af98aad2 Mon Sep 17 00:00:00 2001
+From a80e359d8f265cf1228909a10134e5642ad6713e Mon Sep 17 00:00:00 2001
 From: Sean Cross <xobs@kosagi.com>
 Date: Thu, 23 Oct 2014 21:10:44 +0800
-Subject: [PATCH 12/22] drivers: mfd: senoko: Add Senoko device
+Subject: [PATCH 12/30] drivers: mfd: senoko: Add Senoko device
 
 Senoko is the power supply board present on some Kosagi boards.  It
 acts as a combination RTC, power supply, keyboard, and GPIO board.  This
@@ -250,7 +250,7 @@ index 000000000000..af1e434f8e9d
 +MODULE_DESCRIPTION("Senoko keypad driver");
 +MODULE_AUTHOR("Sean Cross <xobs@kosagi.com>");
 diff --git a/drivers/mfd/Kconfig b/drivers/mfd/Kconfig
-index 11841f4b7b2b..c9b562e8b1d3 100644
+index dd938a5d0409..b2e7ddab4aac 100644
 --- a/drivers/mfd/Kconfig
 +++ b/drivers/mfd/Kconfig
 @@ -1177,6 +1177,21 @@ config MFD_DB8500_PRCMU

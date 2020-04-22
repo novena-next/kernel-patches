@@ -1,7 +1,7 @@
-From 04e9bd6dd93eb36358aea93237877dfe0c3fff2d Mon Sep 17 00:00:00 2001
+From a836882baeb4093a3e2babe22b308504bd513c9e Mon Sep 17 00:00:00 2001
 From: Sean Cross <xobs@kosagi.com>
 Date: Thu, 31 Dec 2015 11:48:55 +0800
-Subject: [PATCH 04/22] i2c: imx: Work better with a bus under contention
+Subject: [PATCH 04/30] i2c: imx: Work better with a bus under contention
 
 The i.MX6 does not behave well when the bus is in use.  This
 patch causes it to try harder under these situations, but still
@@ -15,7 +15,7 @@ Signed-off-by: Sean Cross <xobs@kosagi.com>
  1 file changed, 78 insertions(+), 18 deletions(-)
 
 diff --git a/drivers/i2c/busses/i2c-imx.c b/drivers/i2c/busses/i2c-imx.c
-index 7bd409eaf0ac..22c0f989edf2 100644
+index d4b72e4ffd71..1d5094a6318d 100644
 --- a/drivers/i2c/busses/i2c-imx.c
 +++ b/drivers/i2c/busses/i2c-imx.c
 @@ -408,6 +408,7 @@ static int i2c_imx_bus_busy(struct imx_i2c_struct *i2c_imx, int for_busy)

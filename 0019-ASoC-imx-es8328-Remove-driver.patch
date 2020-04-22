@@ -1,7 +1,7 @@
-From 81910cbe70116094af902c70256b96526327c73e Mon Sep 17 00:00:00 2001
+From 3e6385f4d01870c14939b6b64764bb934b135b62 Mon Sep 17 00:00:00 2001
 From: Jookia <166291@gmail.com>
 Date: Mon, 9 Sep 2019 21:34:56 +1000
-Subject: [PATCH 19/22] ASoC: imx-es8328: Remove driver
+Subject: [PATCH 19/30] ASoC: imx-es8328: Remove driver
 
 Now that it's merged in to fsl-asoc-card, remove it from the tree.
 ---

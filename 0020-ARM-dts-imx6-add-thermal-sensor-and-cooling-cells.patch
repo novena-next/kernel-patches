@@ -1,7 +1,7 @@
-From 3494f7ddc84ced607c1b5940695c412b9f4caf36 Mon Sep 17 00:00:00 2001
+From 49105ef10bd4b52a5f95c29ad26c1d319bd56ae9 Mon Sep 17 00:00:00 2001
 From: Lucas Stach <l.stach@pengutronix.de>
 Date: Mon, 5 Nov 2018 18:34:02 +0100
-Subject: [PATCH 20/22] ARM: dts: imx6: add thermal sensor and cooling cells
+Subject: [PATCH 20/30] ARM: dts: imx6: add thermal sensor and cooling cells
 
 This allows a board to specify a custom thermal zone configuration
 involving the SoC internal sensor, CPU and GPU nodes without having

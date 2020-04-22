@@ -1,7 +1,7 @@
-From 1d6318646f412ae2b708995ca7defae9e2e62e72 Mon Sep 17 00:00:00 2001
+From 79aaa09047820299a1b6d4f83f2d87d249c81758 Mon Sep 17 00:00:00 2001
 From: Sean Cross <xobs@kosagi.com>
 Date: Mon, 22 Dec 2014 13:59:58 +0800
-Subject: [PATCH 03/22] drm/panel: simple: Add Innolux N133HSE panel support
+Subject: [PATCH 03/30] drm/panel: simple: Add Innolux N133HSE panel support
 
 The Innolux N133HSE panel is a 13.3" 1920x1080 panel that contains an
 integrated backlight, and connects via eDP.
@@ -14,10 +14,10 @@ Signed-off-by: Sean Cross <xobs@kosagi.com>
  1 file changed, 26 insertions(+)
 
 diff --git a/drivers/gpu/drm/panel/panel-simple.c b/drivers/gpu/drm/panel/panel-simple.c
-index b1d41c4921dd..8e1702e5323c 100644
+index 654fea2b4312..8a21b5d4cc62 100644
 --- a/drivers/gpu/drm/panel/panel-simple.c
 +++ b/drivers/gpu/drm/panel/panel-simple.c
-@@ -1340,6 +1340,29 @@ static const struct panel_desc innolux_n116bge = {
+@@ -1366,6 +1366,29 @@ static const struct panel_desc innolux_n116bge = {
  	},
  };
  
@@ -47,7 +47,7 @@ index b1d41c4921dd..8e1702e5323c 100644
  static const struct drm_display_mode innolux_n156bge_l21_mode = {
  	.clock = 69300,
  	.hdisplay = 1366,
-@@ -2441,6 +2464,9 @@ static const struct of_device_id platform_of_match[] = {
+@@ -2470,6 +2493,9 @@ static const struct of_device_id platform_of_match[] = {
  	}, {
  		.compatible = "innolux,n116bge",
  		.data = &innolux_n116bge,

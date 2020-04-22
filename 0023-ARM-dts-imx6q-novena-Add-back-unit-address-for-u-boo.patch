@@ -1,0 +1,31 @@
+From 3ca07a4bb04229e1d391aca2d906d1e8bd11c311 Mon Sep 17 00:00:00 2001
+From: Jookia <contact@jookia.org>
+Date: Wed, 25 Mar 2020 14:46:55 +1100
+Subject: [PATCH 23/30] ARM: dts: imx6q-novena: Add back unit address for
+ u-boot
+
+If no panel is enabled in the EEPROM, the Novena stock u-boot will
+remove this device by this specific node including its address.
+Adding it back fixes booting without a panel properly.
+
+This reverts commit c519d57b1962d29cc838bebf2c1fd5daf4547b6c.
+---
+ arch/arm/boot/dts/imx6qdl.dtsi | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/arch/arm/boot/dts/imx6qdl.dtsi b/arch/arm/boot/dts/imx6qdl.dtsi
+index d1bd00a427d6..802cfa4f1137 100644
+--- a/arch/arm/boot/dts/imx6qdl.dtsi
++++ b/arch/arm/boot/dts/imx6qdl.dtsi
+@@ -80,7 +80,7 @@
+ 		#thermal-sensor-cells = <0>;
+ 	};
+ 
+-	ldb: ldb {
++	ldb: ldb@020e0008 {
+ 		#address-cells = <1>;
+ 		#size-cells = <0>;
+ 		compatible = "fsl,imx6q-ldb", "fsl,imx53-ldb";
+-- 
+2.20.1
+

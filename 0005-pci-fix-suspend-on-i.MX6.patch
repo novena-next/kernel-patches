@@ -1,7 +1,7 @@
-From 0f6496b162fa6a49332835b0652a0cdf00c3cbd3 Mon Sep 17 00:00:00 2001
+From 3b7be183157d0308a639f7c54f51416f21cc4da9 Mon Sep 17 00:00:00 2001
 From: Sean Cross <xobs@kosagi.com>
 Date: Fri, 1 Jan 2016 16:20:26 +0800
-Subject: [PATCH 05/22] pci: fix suspend on i.MX6
+Subject: [PATCH 05/30] pci: fix suspend on i.MX6
 
 Signed-off-by: Sean Cross <xobs@kosagi.com>
 ---
@@ -9,7 +9,7 @@ Signed-off-by: Sean Cross <xobs@kosagi.com>
  1 file changed, 31 insertions(+)
 
 diff --git a/arch/arm/mach-imx/pm-imx6.c b/arch/arm/mach-imx/pm-imx6.c
-index b08e407d8d96..3fa2834a1504 100644
+index 529f4b5bbd3a..09f0cf2d65f8 100644
 --- a/arch/arm/mach-imx/pm-imx6.c
 +++ b/arch/arm/mach-imx/pm-imx6.c
 @@ -383,6 +383,8 @@ static int imx6q_suspend_finish(unsigned long val)

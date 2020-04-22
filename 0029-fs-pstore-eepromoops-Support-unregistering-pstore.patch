@@ -1,0 +1,55 @@
+From 16aae414f47116b568c837a131ba9d9250cf3b48 Mon Sep 17 00:00:00 2001
+From: Jookia <contact@jookia.org>
+Date: Thu, 26 Mar 2020 18:57:44 +1100
+Subject: [PATCH 29/30] fs: pstore: eepromoops: Support unregistering pstore
+
+pstore now supports unregistering backends, so do that now.
+---
+ fs/pstore/eeprom.c | 18 ++++--------------
+ 1 file changed, 4 insertions(+), 14 deletions(-)
+
+diff --git a/fs/pstore/eeprom.c b/fs/pstore/eeprom.c
+index dfce973d5d92..f8afea915eaa 100644
+--- a/fs/pstore/eeprom.c
++++ b/fs/pstore/eeprom.c
+@@ -480,25 +480,15 @@ static int eepromoops_i2c_probe(struct i2c_client *i2c,
+ 	return err;
+ }
+ 
+-static int eepromoops_i2c_remove(struct i2c_client *client)
++static int eepromoops_i2c_remove(struct i2c_client *i2c)
+ {
+-#if 0
+-	/* TODO(kees): We cannot unload eepromoops since pstore doesn't support
+-	 * unregistering yet.
+-	 */
+-	struct eeprom_priv *priv = &oops_cxt;
+-
+-	iounmap(priv->virt_addr);
+-	release_mem_region(priv->phys_addr, priv->size);
+-	priv->max_dump_cnt = 0;
++	struct eeprom_priv *priv = i2c_get_clientdata(i2c);
++	pstore_unregister(priv->pstore);
+ 
+-	/* TODO(kees): When pstore supports unregistering, call it here. */
+ 	kfree(priv->pstore->buf);
+ 	priv->pstore->bufsize = 0;
+ 
+ 	return 0;
+-#endif
+-	return -EBUSY;
+ }
+ 
+ static const struct i2c_device_id eepromoops_i2c_id[] = {
+@@ -520,7 +510,7 @@ static struct i2c_driver eepromoops_i2c_driver = {
+ 		.of_match_table	= eepromoops_of_match,
+ 	},
+ 	.probe	= eepromoops_i2c_probe,
+-	.remove	= __exit_p(eepromoops_i2c_remove),
++	.remove	= eepromoops_i2c_remove,
+ 	.id_table	= eepromoops_i2c_id,
+ };
+ 
+-- 
+2.20.1
+

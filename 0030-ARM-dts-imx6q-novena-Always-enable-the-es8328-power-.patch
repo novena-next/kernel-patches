@@ -1,0 +1,39 @@
+From e48619edadbde342d79655e73654f0b21fc5e20b Mon Sep 17 00:00:00 2001
+From: Jookia <contact@jookia.org>
+Date: Wed, 1 Apr 2020 14:37:10 +1100
+Subject: [PATCH 30/30] ARM: dts: imx6q-novena: Always enable the es8328-power
+ regulator
+
+Linux helpfully shuts down the es8328-power regulator if the es8328
+audio codec isn't in use. Unhelpfully this seems to kill the I2C3 bus
+and break a variety of functions such as the screen, EEPROM and Senoko.
+
+Keep the regular enabled even if it's not used by the es8328 codec.
+---
+ arch/arm/boot/dts/imx6q-novena.dts | 5 +----
+ 1 file changed, 1 insertion(+), 4 deletions(-)
+
+diff --git a/arch/arm/boot/dts/imx6q-novena.dts b/arch/arm/boot/dts/imx6q-novena.dts
+index 27aa1927b148..934ee700f691 100644
+--- a/arch/arm/boot/dts/imx6q-novena.dts
++++ b/arch/arm/boot/dts/imx6q-novena.dts
+@@ -149,15 +149,12 @@
+ 	reg_audio_codec: regulator-audio-codec {
+ 		compatible = "regulator-fixed";
+ 		regulator-name = "es8328-power";
+-		regulator-boot-on;
++		regulator-always-on;
+ 		regulator-min-microvolt = <5000000>;
+ 		regulator-max-microvolt = <5000000>;
+ 		startup-delay-us = <400000>;
+ 		gpio = <&gpio5 17 GPIO_ACTIVE_HIGH>;
+ 		enable-active-high;
+-		regulator-state-mem {
+-			regulator-on-in-suspend;
+-		};
+ 	};
+ 
+ 	reg_display: regulator-display {
+-- 
+2.20.1
+

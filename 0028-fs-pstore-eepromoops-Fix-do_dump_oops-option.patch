@@ -1,0 +1,46 @@
+From 46b93e249fc56fdedfaefdbfd9f5b15ee751f388 Mon Sep 17 00:00:00 2001
+From: Jookia <contact@jookia.org>
+Date: Thu, 26 Mar 2020 18:56:51 +1100
+Subject: [PATCH 28/30] fs: pstore: eepromoops: Fix do_dump_oops option
+
+This doesn't seem to have been implemented before, so add it now.
+---
+ fs/pstore/eeprom.c | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)
+
+diff --git a/fs/pstore/eeprom.c b/fs/pstore/eeprom.c
+index c1f8740cd775..dfce973d5d92 100644
+--- a/fs/pstore/eeprom.c
++++ b/fs/pstore/eeprom.c
+@@ -85,8 +85,6 @@ struct eeprom_priv {
+ 
+ 	size_t record_size;
+ 
+-	int do_dump_oops;
+-
+ 	struct pstore_info *pstore;
+ 
+ 	struct i2c_client *i2c;
+@@ -383,6 +381,11 @@ static int notrace eeprom_pstore_write(struct pstore_record *record)
+ 		return -EINVAL;
+ 	}
+ 
++	if(type == PSTORE_TYPE_DMESG && reason == KMSG_DUMP_OOPS && !do_dump_oops) {
++		dev_dbg(&priv->i2c->dev, "do_dump_oops is disabled, refusing to dump\n");
++		return -EINVAL;
++	}
++
+ //	if (part != 1) {
+ //		dev_dbg(&priv->i2c->dev, "Only care about part 1\n");
+ //		return -ENOSPC;
+@@ -450,7 +453,6 @@ static int eepromoops_i2c_probe(struct i2c_client *i2c,
+ 	priv->eeprom_settle_usec = eeprom_settle_usec;
+ 	priv->eeprom_page_size = eeprom_page_size;
+ 	priv->record_size = record_size;
+-	priv->do_dump_oops = do_dump_oops;
+ 	priv->i2c = i2c;
+ 	priv->current_record = 0;
+ 
+-- 
+2.20.1
+

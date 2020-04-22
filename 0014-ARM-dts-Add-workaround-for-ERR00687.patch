@@ -1,7 +1,7 @@
-From 6222e3d7f97621559fa8a27d2f7fb552b7c99596 Mon Sep 17 00:00:00 2001
+From ca7009f65c3e00ceed6accebb60b8904918122ce Mon Sep 17 00:00:00 2001
 From: Jookia <166291@gmail.com>
 Date: Wed, 28 Aug 2019 21:25:19 +1000
-Subject: [PATCH 14/22] ARM: dts: Add workaround for ERR00687
+Subject: [PATCH 14/30] ARM: dts: Add workaround for ERR00687
 
 This is based on creardon's work at:
 https://www.kosagi.com/forums/viewtopic.php?id=253

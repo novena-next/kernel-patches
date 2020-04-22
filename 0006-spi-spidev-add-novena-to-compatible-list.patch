@@ -1,7 +1,7 @@
-From 7c61b3eb9cb3f1e0160ff004fae38b4ccfff73bf Mon Sep 17 00:00:00 2001
+From f87095e0aa490f0b98825e334537b9ad592f3480 Mon Sep 17 00:00:00 2001
 From: Sean Cross <xobs@kosagi.com>
 Date: Fri, 8 Jan 2016 11:53:16 +0800
-Subject: [PATCH 06/22] spi: spidev: add novena to compatible list
+Subject: [PATCH 06/30] spi: spidev: add novena to compatible list
 
 The Novena FPGA is connected via SPI, and being an FPGA, it can
 be reconfigured to be anything.  Therefore, it is easiest to
@@ -19,10 +19,10 @@ Signed-off-by: Sean Cross <xobs@kosagi.com>
  1 file changed, 1 insertion(+)
 
 diff --git a/drivers/spi/spidev.c b/drivers/spi/spidev.c
-index cda10719d1d1..3148ec866a00 100644
+index 028725573e63..230409e115a5 100644
 --- a/drivers/spi/spidev.c
 +++ b/drivers/spi/spidev.c
-@@ -669,6 +669,7 @@ static const struct of_device_id spidev_dt_ids[] = {
+@@ -672,6 +672,7 @@ static const struct of_device_id spidev_dt_ids[] = {
  	{ .compatible = "lineartechnology,ltc2488" },
  	{ .compatible = "ge,achc" },
  	{ .compatible = "semtech,sx1301" },

@@ -1,7 +1,7 @@
-From 735cbbfadb4a75bd3d48d5fd0be2d1a8e022d536 Mon Sep 17 00:00:00 2001
+From 55a8b9c8ef756888b6de49f7d07290764c4dc8a8 Mon Sep 17 00:00:00 2001
 From: Jookia <166291@gmail.com>
 Date: Wed, 28 Aug 2019 21:20:09 +1000
-Subject: [PATCH 13/22] ARM: dts: Add non-mainlined device tree additions
+Subject: [PATCH 13/30] ARM: dts: Add non-mainlined device tree additions
 
 This brings back the major differences from xobs' 4.4 device tree.
 
