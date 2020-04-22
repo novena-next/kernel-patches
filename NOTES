@@ -1,0 +1,114 @@
+Parity with v4.4-novena commits as of v4.19.y-novena-wip3:
+
+DONE:
+
+thermal:
+> e09fdb06e5a4 imx: thermal: remove cooling device
+fpga:
+- requires iomem=relaxed boot arg
+ldb stability:
+> efa0a394bca0 DRM: imx: HACK: enable debug mode
+ - NOT PORTABLE, REMOVED
+> c8ebe38b5e8f DRM: imx: ldb: always restart ldb device
+> 032013d2f56d gpu: imx: attempt to fix ldb stability
+es8328 support
+> 6a7670a3ac7b soc: es8328: try to implement resume function
+ - confusing?
+> ff010f4fa0b4 ASoC: es8328: remove power management
+ - confusing?
+> 468b85c56f09 ASoC: imx-es8328: add power management support
+ - not needed, asoc card does it
+> c0616786aeca ASoC: es8328: use single writes to fix resume
+ - fixed upstream
+> e151ac314c31 soc: jack: register the jack as a kctl device
+> c43196265f6a ASoC: es8328: Set clock rates when setting DAI format
+ - not needed, asoc card does this
+dts: (squashed)
+> c0d6f782968b ARM: dts: imx6q: add novena devicetree file
+> bdbfa494b5b0 arm: dts: add wakeup to user button, fix it6251 timings
+> 5f3c4528c771 ARM: dts: restart the display power supplies on boot
+> b2ab58fac9da arm: dts: novena: use PLL2 for ldb clock
+imx fixes:
+> 96361c49ed1a pwm: imx: Support very long period lengths
+ - needed for backlight
+> f778a2885212 pci: fix suspend on i.MX6
+> 26d555c60bfd i2c: imx: Work better with a bus under contention
+it6251:
+> 09cd224bc585 DRM: bridge: it6251: always recalibrate on boot
+> d45e59bfbee9 drm/bridge: it6251: add new lvds to dp converter
+peripherals:
+> 3ff1220251be spi: spidev: add novena to compatible list
+> b35cf0c15e4f fs: pstore: add eeprom-based pstore backend
+> 516fae5e2087 drm/panel: simple: Add Innolux N133HSE panel support
+senoko: (squashed)
+> c75e6f3d9f3a senoko: repeatedly try to powerdown
+> 6a62d591a134 drivers: input: keyboard: Add Senoko power button
+> 45e554bbf39a drivers: power: Add senoko power supply
+> 2bfa63340e72 drivers: mfd: senoko: Add Senoko device
+
+IGNORED:
+
+obsoleted:
+> 752bda8b4383 drm/imx: imx-ldb: add support for drm bridges
+> 43ab15a0a92a arm: dts: Add cpufreq-cooling support to imx6q
+> a0e052879bac serial: imx: don't enable clocks on suspend/resume
+ - fixed by 09df0b3464e528c6a4ca2c48d9ff6d2fd7cbd775
+> 0a7f7291dfc8 novena: drm: imx: HACK: Manually specify CRTCs
+ - use device tree instead
+> 84330250c76e of-thermal: support adding a hwmon device
+> 8d3f098ed6cf arm: dts: imx6qdl: Add cell count to thermal node
+> ce2519862a93 cpufreq: imx: register cpufreq cooling device
+arm config:
+> d9d2e8b619f1 arm: configs: novena: enable 74XX GPIO controller
+> 22e2813ec59d arm: config: novena: disable tracing
+> fb24f1705424 configs: novena: enable aufs in defconfig
+> bbcff799a706 config: novena: make btrfs a builtin
+> 9bbd8c5b975e configs: novena_defconfig: enable acl, vxlan for docker
+> 558a384d9bb4 ARM: novena_defconfig: add default config for novena
+backports:
+> 8f38e6521ff7 ipv6: addrconf: fix dev refcont leak when DAD failed
+> 6b1acf1575ad aufs: add files not part of patches
+> 978bb04eac14 aufs: apply aufs-standalone.patch
+> 037f2df3fc1e aufs: apply aufs-mmap.patch
+> cfb95dc56de9 aufs: apply aufs-kbuild.patch
+> c87488cd3afa aufs: apply aufs-base.patch
+> aeeff2a0ab31 mm: remove gup_flags FOLL_WRITE games from __get_user_pages()
+> e42a8f1c70fc rtc: Add an option to invalidate dates in 2038
+> 5b2204239a58 rtc: pcf8523: properly handle oscillator stop bit
+> a6629f3b07d5 ARM: imx6: Fix procedure to switch the parent of LDB_DI_CLK
+> 06aeb293b6bc ARM: imx6: Mask mmdc_ch1 handshake for periph2_sel and mmdc_ch1_axi_podf
+> bf0b042057c0 drm/etnaviv: unlock on error in etnaviv_gem_get_iova()
+> 9407142dddde ARM: imx6: add power domains to Vivante GPU nodes
+> 3b3bfe52c836 ARM: imx6: add Vivante GPU nodes
+> 90fee8bff768 drm/etnaviv: add initial etnaviv DRM driver
+packaging:
+> bcacd4e6995a novena-linux: tag 4.4-r14
+> 64f88545f066 package-kernel: tag 4.4-r13
+> c3811a591e55 package-kernel: add "jessie" to distribution
+> 3a2d77e1bcda package-kernel: bump version to 4.4-r12
+> 651751683e74 package-kernel: tag 4.4.0-r11
+> 42014e89aa13 package-kernel: bump to 4.4.0-r10
+> 49d5f1070f38 package-kernel: update to v4.4-novena-r9
+> 342b99bc3cb4 novena_defconfig: enable CONFIG_RTC_INVALID_2038
+> c9ba6e820220 package-kernel: update to v4.4-novena-r8
+> df36c47ddd9b Merge branch 'v4.4-novena' of github.com:xobs/novena-linux into v4.4-novena
+> 6b2254ce3fa5 package-kernel: update to 4.4-novena-r7
+> 9205204b014f package-kernel: don't die when branch doesn't exist
+> 59bd6c98571a package-kerne: update to v4.4-novena-r6
+> a5fcfa9f2dfe package-kernel: make defconfig on build
+> 32f69c2caa1f package-kerne: update to v4.4-novena-r6
+> e803c6f76f93 package-kernel: update to v4.4-novena-r4
+> 350e59fa923b package-kernel: update to v4.4-novena-r3
+> b4a00c68df55 package-kernel: don't allow building when tree is dirty
+> c2e899eb2933 package-kernel: update to v4.4-novena-r2
+> 0b8adb00f4d8 deb-pkg: Add support for KBUILD_DTB
+> ac520c47e49e scripts: Add custom destdir parameter
+> e2ce51df6622 scripts: builddeb: Allow specifying a package name
+> 098ae523304b scripts: Add custom destdir parameter
+> 50da2f88cf2f deb-pkg: Add support for KBUILD_DTB
+> 35c212ea82a3 package-kernel: Add our own package script
+reverted:
+> b4aeb6ee25a4 Revert "serial: imx: don't enable clocks on suspend/resume"
+> 8e7394d715d8 serial: imx: hack to fix suspend/resume
+> 0ef88f538910 Revert "drivers: net: ath: Enable coex/powersave for ath9k"
+> 506c5e5e5047 drivers: net: ath: Enable coex/powersave for ath9k
