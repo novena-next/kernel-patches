@@ -1,7 +1,7 @@
-From c6f8e3b308419505d50afe494593f1db1f78023b Mon Sep 17 00:00:00 2001
+From 788b9349858503933f0cddafe9ea45ad0202b95a Mon Sep 17 00:00:00 2001
 From: Sean Cross <xobs@kosagi.com>
 Date: Fri, 15 Jan 2016 13:59:11 +0800
-Subject: [PATCH 08/17] gpu: imx: attempt to fix ldb stability
+Subject: [PATCH 07/22] gpu: imx: attempt to fix ldb stability
 
 Add a delay, taken from the FSL code, to try and increase LDB
 stability.  Otherwise, the LDB has about a 3% chance of being

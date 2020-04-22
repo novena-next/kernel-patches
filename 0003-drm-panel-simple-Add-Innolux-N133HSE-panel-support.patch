@@ -1,7 +1,7 @@
-From 742dd2426d3d7e3350b67986fd61c1630f85a287 Mon Sep 17 00:00:00 2001
+From 1d6318646f412ae2b708995ca7defae9e2e62e72 Mon Sep 17 00:00:00 2001
 From: Sean Cross <xobs@kosagi.com>
 Date: Mon, 22 Dec 2014 13:59:58 +0800
-Subject: [PATCH 03/17] drm/panel: simple: Add Innolux N133HSE panel support
+Subject: [PATCH 03/22] drm/panel: simple: Add Innolux N133HSE panel support
 
 The Innolux N133HSE panel is a 13.3" 1920x1080 panel that contains an
 integrated backlight, and connects via eDP.

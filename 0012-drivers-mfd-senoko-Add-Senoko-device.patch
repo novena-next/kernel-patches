@@ -1,7 +1,7 @@
-From cdd65995d6513acb02f200bdd8c7341d7c142d62 Mon Sep 17 00:00:00 2001
+From 211225989f0390e2c65f699ab43faa74af98aad2 Mon Sep 17 00:00:00 2001
 From: Sean Cross <xobs@kosagi.com>
 Date: Thu, 23 Oct 2014 21:10:44 +0800
-Subject: [PATCH 14/17] drivers: mfd: senoko: Add Senoko device
+Subject: [PATCH 12/22] drivers: mfd: senoko: Add Senoko device
 
 Senoko is the power supply board present on some Kosagi boards.  It
 acts as a combination RTC, power supply, keyboard, and GPIO board.  This

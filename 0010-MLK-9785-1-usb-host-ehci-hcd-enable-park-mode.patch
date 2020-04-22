@@ -1,7 +1,7 @@
-From 628c5645b97ef98c6d749e8e28bf92ada3e734b1 Mon Sep 17 00:00:00 2001
+From 6c166f83dcea9eb3231532de92ad95f1d57f1e4f Mon Sep 17 00:00:00 2001
 From: Peter Chen <peter.chen@freescale.com>
 Date: Tue, 4 Nov 2014 20:46:15 +0800
-Subject: [PATCH 12/17] MLK-9785-1 usb: host: ehci-hcd: enable park mode
+Subject: [PATCH 10/22] MLK-9785-1 usb: host: ehci-hcd: enable park mode
 
 Enable park mode will improve the performance a lot at USB ethernet use
 case, but a little at USB mass storage use case, and it is not harm from

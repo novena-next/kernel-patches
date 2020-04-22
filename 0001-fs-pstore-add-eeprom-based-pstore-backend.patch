@@ -1,7 +1,7 @@
-From ba71742193778e113b63afe3d48d264c5c992f12 Mon Sep 17 00:00:00 2001
+From 6492b3ffdab97b38971b54dc9c586fee425fa1aa Mon Sep 17 00:00:00 2001
 From: Sean Cross <xobs@kosagi.com>
 Date: Fri, 7 Feb 2014 11:48:24 +0800
-Subject: [PATCH 01/17] fs: pstore: add eeprom-based pstore backend
+Subject: [PATCH 01/22] fs: pstore: add eeprom-based pstore backend
 
 Some boards ship with an onboard I2C EEPROM that can be used to log
 crashes and such in between reboots.  This can be more reliable,

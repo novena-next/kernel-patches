@@ -1,7 +1,7 @@
-From 89f46c28a9f4d722e0beb4cf97abc8733142e4f4 Mon Sep 17 00:00:00 2001
+From 6222e3d7f97621559fa8a27d2f7fb552b7c99596 Mon Sep 17 00:00:00 2001
 From: Jookia <166291@gmail.com>
 Date: Wed, 28 Aug 2019 21:25:19 +1000
-Subject: [PATCH 16/17] arm: dts: Add workaround for ERR00687
+Subject: [PATCH 14/22] ARM: dts: Add workaround for ERR00687
 
 This is based on creardon's work at:
 https://www.kosagi.com/forums/viewtopic.php?id=253
@@ -30,7 +30,7 @@ ARM: imx6: disable deeper idle states when FEC is active w/o HW workaround
  1 file changed, 9 insertions(+)
 
 diff --git a/arch/arm/boot/dts/imx6q-novena.dts b/arch/arm/boot/dts/imx6q-novena.dts
-index 2585eb4ac4d6..6ce4c1cca54b 100644
+index 0a9ff3bab8d9..c59a27caf3a1 100644
 --- a/arch/arm/boot/dts/imx6q-novena.dts
 +++ b/arch/arm/boot/dts/imx6q-novena.dts
 @@ -350,6 +350,13 @@

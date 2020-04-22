@@ -1,0 +1,42 @@
+From 2414089270226d4a104c415d4b3e24b56cee7ae2 Mon Sep 17 00:00:00 2001
+From: Jookia <166291@gmail.com>
+Date: Mon, 9 Sep 2019 06:01:12 +1000
+Subject: [PATCH 17/22] ARM: dts: imx6q-novena: Fix es8328 clocks
+
+The clock configuration was wrong and failed to set the correct rates.
+
+The errors in the additional config:
+- CLK_CKO1 can't have rates set, use CLK_CKO1_PODF instead.
+- CLK_PLL4_AUDIO can't have rates set, use CLK_PLL4 instead.
+- PLL4 isn't divided, set CLK_PLL4_POST_DIV to 0 to divide it by 4.
+- Only CKO and CKO1_SEL can be reparented, don't try reparenting others.
+---
+ arch/arm/boot/dts/imx6q-novena.dts | 11 +++++------
+ 1 file changed, 5 insertions(+), 6 deletions(-)
+
+diff --git a/arch/arm/boot/dts/imx6q-novena.dts b/arch/arm/boot/dts/imx6q-novena.dts
+index bc01d9749706..d5ca16be8a47 100644
+--- a/arch/arm/boot/dts/imx6q-novena.dts
++++ b/arch/arm/boot/dts/imx6q-novena.dts
+@@ -564,13 +564,12 @@
+ 		clocks = <&clks IMX6QDL_CLK_CKO1>;
+ 		assigned-clocks = <&clks IMX6QDL_CLK_CKO>,
+ 				  <&clks IMX6QDL_CLK_CKO1_SEL>,
+-				  <&clks IMX6QDL_CLK_PLL4_AUDIO>,
+-				  <&clks IMX6QDL_CLK_CKO1>;
++				  <&clks IMX6QDL_CLK_PLL4>,
++				  <&clks IMX6QDL_CLK_PLL4_POST_DIV>,
++				  <&clks IMX6QDL_CLK_CKO1_PODF>;
+ 		assigned-clock-parents = <&clks IMX6QDL_CLK_CKO1>,
+-					 <&clks IMX6QDL_CLK_PLL4_AUDIO_DIV>,
+-					 <&clks IMX6QDL_CLK_OSC>,
+-					 <&clks IMX6QDL_CLK_CKO1_PODF>;
+-		assigned-clock-rates = <0 0 722534400 22579200>;
++					 <&clks IMX6QDL_CLK_PLL4_AUDIO_DIV>;
++		assigned-clock-rates = <0 0 722534400 0 22579200>;
+ 	};
+ 
+ 	eepromoops@56 {
+-- 
+2.20.1
+

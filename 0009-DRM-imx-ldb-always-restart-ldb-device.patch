@@ -1,7 +1,7 @@
-From c8df6cb039107b629c3d89d3db35c5ac185ba090 Mon Sep 17 00:00:00 2001
+From 04bf5a2a8223defdc696cac6fbd8ab9e32dd7c2d Mon Sep 17 00:00:00 2001
 From: Sean Cross <xobs@kosagi.com>
 Date: Thu, 11 Feb 2016 16:01:12 +0800
-Subject: [PATCH 11/17] DRM: imx: ldb: always restart ldb device
+Subject: [PATCH 09/22] DRM: imx: ldb: always restart ldb device
 
 Always write "0" to the ldb control registers before writing
 the actual, wanted values.
@@ -16,10 +16,10 @@ Signed-off-by: Sean Cross <xobs@kosagi.com>
  1 file changed, 10 insertions(+)
 
 diff --git a/drivers/gpu/drm/imx/imx-ldb.c b/drivers/gpu/drm/imx/imx-ldb.c
-index 7b7e866c4fb9..5476f73c1733 100644
+index 42daa5c9ff8e..27b847d7a710 100644
 --- a/drivers/gpu/drm/imx/imx-ldb.c
 +++ b/drivers/gpu/drm/imx/imx-ldb.c
-@@ -176,6 +176,10 @@ static void imx_ldb_set_clock(struct imx_ldb *ldb, int mux, int chno,
+@@ -175,6 +175,10 @@ static void imx_ldb_set_clock(struct imx_ldb *ldb, int mux, int chno,
  		unsigned long serial_clk, unsigned long di_clk)
  {
  	int ret;
@@ -28,9 +28,9 @@ index 7b7e866c4fb9..5476f73c1733 100644
 +	regmap_read(ldb->regmap, IOMUXC_GPR2, &ctrl);
 +	dev_dbg(ldb->dev, "%d:%s: LDB_CTRL: 0x%08x\n", chno, __func__, ctrl);
  
- 	dev_dbg(ldb->dev, "%d:%s: now: %ld want: %ld\n", chno, __func__,
+ 	dev_dbg(ldb->dev, "%s: now: %ld want: %ld\n", __func__,
  			clk_get_rate(ldb->clk_pll[chno]), serial_clk);
-@@ -205,6 +209,8 @@ static void imx_ldb_encoder_enable(struct drm_encoder *encoder)
+@@ -204,6 +208,8 @@ static void imx_ldb_encoder_enable(struct drm_encoder *encoder)
  	struct imx_ldb_channel *imx_ldb_ch = enc_to_imx_ldb_ch(encoder);
  	struct imx_ldb *ldb = imx_ldb_ch->ldb;
  	int dual = ldb->ldb_ctrl & LDB_SPLIT_MODE_EN;
@@ -39,7 +39,7 @@ index 7b7e866c4fb9..5476f73c1733 100644
  	int mux = drm_of_encoder_active_port_id(imx_ldb_ch->child, encoder);
  
  	drm_panel_prepare(imx_ldb_ch->panel);
-@@ -246,6 +252,10 @@ static void imx_ldb_encoder_enable(struct drm_encoder *encoder)
+@@ -245,6 +251,10 @@ static void imx_ldb_encoder_enable(struct drm_encoder *encoder)
  				   mux << lvds_mux->shift);
  	}
  

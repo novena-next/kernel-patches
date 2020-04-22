@@ -1,7 +1,7 @@
-From 79f60dd9a5e534403ed377be4d9a11fd6af46326 Mon Sep 17 00:00:00 2001
+From 04e9bd6dd93eb36358aea93237877dfe0c3fff2d Mon Sep 17 00:00:00 2001
 From: Sean Cross <xobs@kosagi.com>
 Date: Thu, 31 Dec 2015 11:48:55 +0800
-Subject: [PATCH 05/17] i2c: imx: Work better with a bus under contention
+Subject: [PATCH 04/22] i2c: imx: Work better with a bus under contention
 
 The i.MX6 does not behave well when the bus is in use.  This
 patch causes it to try harder under these situations, but still

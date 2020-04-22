@@ -1,0 +1,31 @@
+From c441b59aff97c33c014e0c1c3731b18b61c5c279 Mon Sep 17 00:00:00 2001
+From: Jookia <166291@gmail.com>
+Date: Mon, 16 Sep 2019 02:32:48 +1000
+Subject: [PATCH 22/22] ARM: dts: imx6q-novena: Add ecspi3 cs-gpios
+
+More than one SPI device is listed, so a cs-gpios entry is needed.
+
+The FPGA is connected to the ECPSI3_SS2 pin.
+The Novena PVT2-A schematic lists that ECSPI3_SS1 and ECSPI3_SS2 pins
+are connected, but this seems to be an error.
+---
+ arch/arm/boot/dts/imx6q-novena.dts | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/arch/arm/boot/dts/imx6q-novena.dts b/arch/arm/boot/dts/imx6q-novena.dts
+index d5ca16be8a47..7c843631a64e 100644
+--- a/arch/arm/boot/dts/imx6q-novena.dts
++++ b/arch/arm/boot/dts/imx6q-novena.dts
+@@ -288,6 +288,9 @@
+ };
+ 
+ &ecspi3 {
++	cs-gpios = <&gpio4 24 GPIO_ACTIVE_LOW>,
++		<&gpio4 25 GPIO_ACTIVE_LOW>,
++		<&gpio4 26 GPIO_ACTIVE_LOW>;
+ 	pinctrl-names = "default";
+ 	pinctrl-0 = <&pinctrl_ecspi3_novena>;
+ 	status = "okay";
+-- 
+2.20.1
+

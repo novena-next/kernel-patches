@@ -1,7 +1,7 @@
-From bc5af7d3cbfc3729b4cae55fb5f4b10a68ff23f4 Mon Sep 17 00:00:00 2001
+From 9c8040a9e57125021932c93485c7625ea2fe6d6a Mon Sep 17 00:00:00 2001
 From: Sean Cross <xobs@kosagi.com>
 Date: Wed, 30 Dec 2015 12:19:59 +0800
-Subject: [PATCH 13/17] drm/bridge: it6251: add new lvds to dp converter
+Subject: [PATCH 11/22] drm/bridge: it6251: add new lvds to dp converter
 
 The IT6251 bridge chip can go from single-, dual-, or quad-lane LVDS to
 DisplayPort and Mini DisplayPort.
@@ -19,8 +19,8 @@ Signed-off-by: Sean Cross <xobs@kosagi.com>
 ---
  drivers/gpu/drm/bridge/Kconfig  |  10 +
  drivers/gpu/drm/bridge/Makefile |   1 +
- drivers/gpu/drm/bridge/it6251.c | 748 ++++++++++++++++++++++++++++++++
- 3 files changed, 759 insertions(+)
+ drivers/gpu/drm/bridge/it6251.c | 744 ++++++++++++++++++++++++++++++++
+ 3 files changed, 755 insertions(+)
  create mode 100644 drivers/gpu/drm/bridge/it6251.c
 
 diff --git a/drivers/gpu/drm/bridge/Kconfig b/drivers/gpu/drm/bridge/Kconfig
@@ -58,10 +58,10 @@ index 35f88d48ec20..1fa60e8eecd6 100644
  obj-$(CONFIG_DRM_SIL_SII8620) += sil-sii8620.o
 diff --git a/drivers/gpu/drm/bridge/it6251.c b/drivers/gpu/drm/bridge/it6251.c
 new file mode 100644
-index 000000000000..1e9a1fedc098
+index 000000000000..88b39cba5b11
 --- /dev/null
 +++ b/drivers/gpu/drm/bridge/it6251.c
-@@ -0,0 +1,748 @@
+@@ -0,0 +1,744 @@
 +/*
 + * Copyright (C) 2014 Sean Cross
 + * All Rights Reserved.
@@ -667,7 +667,7 @@ index 000000000000..1e9a1fedc098
 +	drm_atomic_helper_connector_reset(&it6251->connector);
 +	drm_connector_helper_add(&it6251->connector,
 +				 &it6251_connector_helper_funcs);
-+	drm_mode_connector_attach_encoder(&it6251->connector, bridge->encoder);
++	drm_connector_attach_encoder(&it6251->connector, bridge->encoder);
 +
 +	if (it6251->panel)
 +		drm_panel_attach(it6251->panel, &it6251->connector);
@@ -730,11 +730,7 @@ index 000000000000..1e9a1fedc098
 +
 +	it6251->bridge.funcs = &it6251_bridge_funcs;
 +	it6251->bridge.of_node = dev->of_node;
-+	ret = drm_bridge_add(&it6251->bridge);
-+	if (ret) {
-+		DRM_ERROR("Failed to add bridge\n");
-+		return ret;
-+	}
++	drm_bridge_add(&it6251->bridge);
 +
 +	/* The LVDS-half of the chip shows up at address 0x5e */
 +	it6251->lvds_client = i2c_new_dummy(it6251->client->adapter, LVDS_ADDR);

@@ -1,14 +1,16 @@
-From 73bc6c914c0610f7819576f781a6b3570ac6563e Mon Sep 17 00:00:00 2001
+From 735cbbfadb4a75bd3d48d5fd0be2d1a8e022d536 Mon Sep 17 00:00:00 2001
 From: Jookia <166291@gmail.com>
 Date: Wed, 28 Aug 2019 21:20:09 +1000
-Subject: [PATCH 15/17] arm: dts: Import 4.4-novena-r2 DTS changes
+Subject: [PATCH 13/22] ARM: dts: Add non-mainlined device tree additions
 
-Port back the major differences from the 4.4 device tree.
+This brings back the major differences from xobs' 4.4 device tree.
 
-The major changes are:
-- Display panel and it6251 support
-- Thermal cooling plus fan for heirloom
-- eepromoops support
+This adds support for:
+- The display panel and it6251
+- Thermal cooling and heirloom fan
+- Senoko battery board
+- The FPGA over SPI
+- Dumping oops to EEPROM via eepromoops
 
 Code taken and manually inspected from:
 
@@ -17,11 +19,11 @@ bdbfa494b5b0 arm: dts: add wakeup to user button, fix it6251 timings
 b2ab58fac9da arm: dts: novena: use PLL2 for ldb clock
 5f3c4528c771 ARM: dts: restart the display power supplies on boot
 ---
- arch/arm/boot/dts/imx6q-novena.dts | 220 ++++++++++++++++++++++++++++-
- 1 file changed, 213 insertions(+), 7 deletions(-)
+ arch/arm/boot/dts/imx6q-novena.dts | 216 ++++++++++++++++++++++++++++-
+ 1 file changed, 211 insertions(+), 5 deletions(-)
 
 diff --git a/arch/arm/boot/dts/imx6q-novena.dts b/arch/arm/boot/dts/imx6q-novena.dts
-index fcd824dc485b..2585eb4ac4d6 100644
+index fcd824dc485b..0a9ff3bab8d9 100644
 --- a/arch/arm/boot/dts/imx6q-novena.dts
 +++ b/arch/arm/boot/dts/imx6q-novena.dts
 @@ -50,6 +50,7 @@
@@ -241,17 +243,7 @@ index fcd824dc485b..2585eb4ac4d6 100644
  			};
  
  			reg_snvs: vsnvs {
-@@ -414,14 +541,40 @@
- 		clocks = <&clks IMX6QDL_CLK_CKO1>;
- 		assigned-clocks = <&clks IMX6QDL_CLK_CKO>,
- 				  <&clks IMX6QDL_CLK_CKO1_SEL>,
--				  <&clks IMX6QDL_CLK_PLL4_AUDIO>,
-+				  <&clks IMX6QDL_CLK_PLL4>,
- 				  <&clks IMX6QDL_CLK_CKO1>;
- 		assigned-clock-parents = <&clks IMX6QDL_CLK_CKO1>,
- 					 <&clks IMX6QDL_CLK_PLL4_AUDIO_DIV>,
--					 <&clks IMX6QDL_CLK_OSC>,
-+					 <&clks IMX6QDL_PLL4_BYPASS_SRC>,
+@@ -422,6 +549,32 @@
  					 <&clks IMX6QDL_CLK_CKO1_PODF>;
  		assigned-clock-rates = <0 0 722534400 22579200>;
  	};
@@ -316,12 +308,12 @@ index fcd824dc485b..2585eb4ac4d6 100644
 +				hback-porch = <1>;
 +				hfront-porch = <158>;
 +				hsync-len = <1>;
-+				
++
 +				vactive = <1080>;
 +				vback-porch = <1>;
 +				vfront-porch = <30>;
 +				vsync-len = <1>;
-+				
++
 +				hsync-active = <0>;
 +				vsync-active = <0>;
 +			};
@@ -335,7 +327,7 @@ index fcd824dc485b..2585eb4ac4d6 100644
  	reset-gpio = <&gpio3 29 GPIO_ACTIVE_LOW>;
 -	vpcie-supply = <&reg_pcie>;
 +	vdd3p3-supply = <&reg_pcie>;
-+	vdd1p5-supply = <&vgen2_reg>;
++	vdd1p5-supply = <&reg_vgen2>;
  	status = "okay";
  };
  

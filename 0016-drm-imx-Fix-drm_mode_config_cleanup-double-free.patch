@@ -1,0 +1,25 @@
+From 5d11671f2671a390bbd3a119969665a6f2dbdc45 Mon Sep 17 00:00:00 2001
+From: Jookia <166291@gmail.com>
+Date: Sat, 7 Sep 2019 21:15:52 +1000
+Subject: [PATCH 16/22] drm/imx: Fix drm_mode_config_cleanup double free
+
+I'm not exactly sure why this is happening.
+---
+ drivers/gpu/drm/imx/imx-drm-core.c | 1 -
+ 1 file changed, 1 deletion(-)
+
+diff --git a/drivers/gpu/drm/imx/imx-drm-core.c b/drivers/gpu/drm/imx/imx-drm-core.c
+index 5ea0c82f9957..0f3ea03b0aa5 100644
+--- a/drivers/gpu/drm/imx/imx-drm-core.c
++++ b/drivers/gpu/drm/imx/imx-drm-core.c
+@@ -289,7 +289,6 @@ static int imx_drm_bind(struct device *dev)
+ #endif
+ 	component_unbind_all(drm->dev, drm);
+ err_kms:
+-	drm_mode_config_cleanup(drm);
+ 	drm_dev_put(drm);
+ 
+ 	return ret;
+-- 
+2.20.1
+

@@ -1,7 +1,7 @@
-From 3c642dab60d1e686b7c449cebcc3537947800cdb Mon Sep 17 00:00:00 2001
+From 7c61b3eb9cb3f1e0160ff004fae38b4ccfff73bf Mon Sep 17 00:00:00 2001
 From: Sean Cross <xobs@kosagi.com>
 Date: Fri, 8 Jan 2016 11:53:16 +0800
-Subject: [PATCH 07/17] spi: spidev: add novena to compatible list
+Subject: [PATCH 06/22] spi: spidev: add novena to compatible list
 
 The Novena FPGA is connected via SPI, and being an FPGA, it can
 be reconfigured to be anything.  Therefore, it is easiest to
@@ -12,6 +12,7 @@ to allow Novena to boot with a spidev device without generating
 a warning on boot.
 
 Signed-off-by: Sean Cross <xobs@kosagi.com>
+
 (Jookia: Ported to v4.14)
 ---
  drivers/spi/spidev.c | 1 +

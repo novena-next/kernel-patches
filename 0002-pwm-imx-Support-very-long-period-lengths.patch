@@ -1,7 +1,7 @@
-From 39f1846cddaa9d2b976494e1e45be14fdc49fb43 Mon Sep 17 00:00:00 2001
+From d8a0a56c36dfd6529981fda3b7a53cb33df6d40f Mon Sep 17 00:00:00 2001
 From: Sean Cross <xobs@kosagi.com>
 Date: Thu, 20 Feb 2014 15:21:16 +0800
-Subject: [PATCH 02/17] pwm: imx: Support very long period lengths
+Subject: [PATCH 02/22] pwm: imx: Support very long period lengths
 
 The IMX PWM block supports using both the system clock and a 32 kHz
 clock for driving PWM events.  For very long period lengths, use the
@@ -9,7 +9,7 @@ clock for driving PWM events.  For very long period lengths, use the
 
 Signed-off-by: Sean Cross <xobs@kosagi.com>
 
-(Jookia: Ported to v4.14)
+(Jookia: Ported to v4.14. Note that this is so the panel works)
 ---
  drivers/pwm/pwm-imx.c | 15 ++++++++++++---
  1 file changed, 12 insertions(+), 3 deletions(-)
