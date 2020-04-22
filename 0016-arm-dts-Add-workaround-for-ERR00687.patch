@@ -1,0 +1,61 @@
+From 89f46c28a9f4d722e0beb4cf97abc8733142e4f4 Mon Sep 17 00:00:00 2001
+From: Jookia <166291@gmail.com>
+Date: Wed, 28 Aug 2019 21:25:19 +1000
+Subject: [PATCH 16/17] arm: dts: Add workaround for ERR00687
+
+This is based on creardon's work at:
+https://www.kosagi.com/forums/viewtopic.php?id=253
+
+> Trying to use my novena as a temporary IP router and I've noticed that
+> ping times on the SoC eth0 link are much slower and vary more than
+> ping times on the AX88772B eth1 link. Both interfaces are connected
+> to the same subnet (and same switch for that matter):
+> ...
+> Anyway, the scattered ping timings (this is on the ethernet controller
+> eth0, the usb ethernet adapter eth1 doesn't have this problem) are due
+> to an interrupt not being serviced when the CPU is in sleep states. I
+> think the gist of it is that it's a hardware bug in the CPU, where the
+> interrupt gets masked and doesn't wake up the cpu, and so it only gets
+> serviced when something else wakes it up (this would explain why the
+> ping timings are seemingly random). There's a workaround where you can
+> route the interrupt through a different pin, you just need to apply
+> the changes in the kernel and compile/install. Here's what I got from
+> rummaging around freescale mailing lists (I can try to dig up the
+> threads if anyone is interested).
+
+The patch referenced is already upstreamed as 293809055656:
+ARM: imx6: disable deeper idle states when FEC is active w/o HW workaround
+---
+ arch/arm/boot/dts/imx6q-novena.dts | 9 +++++++++
+ 1 file changed, 9 insertions(+)
+
+diff --git a/arch/arm/boot/dts/imx6q-novena.dts b/arch/arm/boot/dts/imx6q-novena.dts
+index 2585eb4ac4d6..6ce4c1cca54b 100644
+--- a/arch/arm/boot/dts/imx6q-novena.dts
++++ b/arch/arm/boot/dts/imx6q-novena.dts
+@@ -350,6 +350,13 @@
+ 	txd2-skew-ps = <3000>;
+ 	txd3-skew-ps = <3000>;
+ 	status = "okay";
++	/* workaround for ERR00687 */
++	compatible = "fsl,imx6q-fec";
++	reg = <0x02188000 0x4000>;
++	interrupts-extended = <&gpio1 6 IRQ_TYPE_LEVEL_HIGH>,
++			      <&intc 0 119 IRQ_TYPE_LEVEL_HIGH>;
++	fsl,magic-packet;
++	fsl,err006687-workaround-present;
+ };
+ 
+ &hdmi {
+@@ -770,6 +777,8 @@
+ 			MX6QDL_PAD_GPIO_16__ENET_REF_CLK	0x4001b0a8
+ 			/* Ethernet reset */
+ 			MX6QDL_PAD_EIM_D23__GPIO3_IO23		0x1b0b1
++			/* workaround for ERR00687 */
++			MX6QDL_PAD_GPIO_6__ENET_IRQ        0x000b1
+ 		>;
+ 	};
+ 
+-- 
+2.20.1
+

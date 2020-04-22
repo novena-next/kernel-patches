@@ -1,0 +1,1222 @@
+From cdd65995d6513acb02f200bdd8c7341d7c142d62 Mon Sep 17 00:00:00 2001
+From: Sean Cross <xobs@kosagi.com>
+Date: Thu, 23 Oct 2014 21:10:44 +0800
+Subject: [PATCH 14/17] drivers: mfd: senoko: Add Senoko device
+
+Senoko is the power supply board present on some Kosagi boards.  It
+acts as a combination RTC, power supply, keyboard, and GPIO board.  This
+driver implements some of these features.
+
+Signed-off-by: Sean Cross <xobs@kosagi.com>
+
+(Jookia: Ported to v4.14 and merged with commits below:)
+
+senoko: repeatedly try to powerdown
+
+If the bus is busy, the powerdown message will fail.  Bus contention can
+cause the STM32 I2C block to lock up.
+
+To work around this, we have a timer on the Senoko that resets I2C if it's
+busy for more than a certain amount of time.
+
+If we fail to power off. sleep an ever-increasing amount of time in order
+to give the Senoko board a chance to revive itself in this case.
+
+Signed-off-by: Sean Cross <xobs@kosagi.com>
+
+drivers: power: Add senoko power supply
+
+Senoko power supply can detect the state of the AC connection.
+
+Signed-off-by: Sean Cross <xobs@kosagi.com>
+
+(Jookia: Moved to supply subdirectory)
+
+drivers: input: keyboard: Add Senoko power button
+
+Senoko acts like a keyboard with a single power button.  This button
+supports wake-from-suspend.
+
+Signed-off-by: Sean Cross <xobs@kosagi.com>
+---
+ drivers/input/keyboard/Kconfig             |  10 +
+ drivers/input/keyboard/Makefile            |   1 +
+ drivers/input/keyboard/senoko-kbd.c        | 157 +++++
+ drivers/mfd/Kconfig                        |  15 +
+ drivers/mfd/Makefile                       |   1 +
+ drivers/mfd/senoko.c                       | 647 +++++++++++++++++++++
+ drivers/power/supply/Kconfig               |   8 +
+ drivers/power/supply/Makefile              |   1 +
+ drivers/power/supply/senoko_power_supply.c | 240 ++++++++
+ 9 files changed, 1080 insertions(+)
+ create mode 100644 drivers/input/keyboard/senoko-kbd.c
+ create mode 100644 drivers/mfd/senoko.c
+ create mode 100644 drivers/power/supply/senoko_power_supply.c
+
+diff --git a/drivers/input/keyboard/Kconfig b/drivers/input/keyboard/Kconfig
+index 4713957b0cbb..0ffdc0181263 100644
+--- a/drivers/input/keyboard/Kconfig
++++ b/drivers/input/keyboard/Kconfig
+@@ -585,6 +585,16 @@ config KEYBOARD_SH_KEYSC
+ 	  To compile this driver as a module, choose M here: the
+ 	  module will be called sh_keysc.
+ 
++config KEYBOARD_SENOKO
++	tristate "Senoko keyboard support"
++	depends on MFD_SENOKO
++	help
++	  Say Y here if you want to use certain predefined buttons on
++	  Senoko as a keyboard.
++
++	  To compile this driver as a module, choose M here: the module will be
++	  called senoko-keyboard.
++
+ config KEYBOARD_STMPE
+ 	tristate "STMPE keypad support"
+ 	depends on MFD_STMPE
+diff --git a/drivers/input/keyboard/Makefile b/drivers/input/keyboard/Makefile
+index 182e92985dbf..8967d82d0093 100644
+--- a/drivers/input/keyboard/Makefile
++++ b/drivers/input/keyboard/Makefile
+@@ -53,6 +53,7 @@ obj-$(CONFIG_KEYBOARD_PXA930_ROTARY)	+= pxa930_rotary.o
+ obj-$(CONFIG_KEYBOARD_QT1070)           += qt1070.o
+ obj-$(CONFIG_KEYBOARD_QT2160)		+= qt2160.o
+ obj-$(CONFIG_KEYBOARD_SAMSUNG)		+= samsung-keypad.o
++obj-$(CONFIG_KEYBOARD_SENOKO)		+= senoko-kbd.o
+ obj-$(CONFIG_KEYBOARD_SH_KEYSC)		+= sh_keysc.o
+ obj-$(CONFIG_KEYBOARD_SNVS_PWRKEY)	+= snvs_pwrkey.o
+ obj-$(CONFIG_KEYBOARD_SPEAR)		+= spear-keyboard.o
+diff --git a/drivers/input/keyboard/senoko-kbd.c b/drivers/input/keyboard/senoko-kbd.c
+new file mode 100644
+index 000000000000..af1e434f8e9d
+--- /dev/null
++++ b/drivers/input/keyboard/senoko-kbd.c
+@@ -0,0 +1,157 @@
++/*
++ * Copyright (C) ST-Ericsson SA 2010
++ *
++ * License Terms: GNU General Public License, version 2
++ * Author: Rabin Vincent <rabin.vincent@stericsson.com> for ST-Ericsson
++ */
++
++#include <linux/module.h>
++#include <linux/slab.h>
++#include <linux/input.h>
++#include <linux/interrupt.h>
++#include <linux/platform_device.h>
++
++struct senoko;
++
++int senoko_read(struct senoko *senoko, int offset);
++int senoko_write(struct senoko *senoko, int offset, u8 value);
++
++#define REG_POWER			0x0f
++#define REG_POWER_STATE_MASK		(3 << 0)
++#define REG_POWER_STATE_ON		(0 << 0)
++#define REG_POWER_STATE_OFF		(1 << 0)
++#define REG_POWER_STATE_REBOOT		(2 << 0)
++#define REG_POWER_WDT_MASK		(1 << 2)
++#define REG_POWER_WDT_DISABLE		(0 << 2)
++#define REG_POWER_WDT_ENABLE		(1 << 2)
++#define REG_POWER_WDT_STATE		(1 << 2)
++#define REG_POWER_AC_STATUS_MASK	(1 << 3)
++#define REG_POWER_AC_STATUS_SHIFT	(3)
++#define REG_POWER_PB_STATUS_MASK	(1 << 4)
++#define REG_POWER_PB_STATUS_SHIFT	(4)
++#define REG_POWER_KEY_MASK		(3 << 6)
++#define REG_POWER_KEY_READ		(1 << 6)
++#define REG_POWER_KEY_WRITE		(2 << 6)
++
++struct senoko_keypad {
++	struct senoko *senoko;
++	struct input_dev *input;
++	int irq;
++};
++
++static irqreturn_t senoko_keypad_irq(int irq, void *dev)
++{
++	struct senoko_keypad *keypad = dev;
++	struct senoko *senoko = keypad->senoko;
++	struct input_dev *input = keypad->input;
++	bool up = false;
++	int val;
++
++	val = senoko_read(senoko, REG_POWER);
++	if (val < 0) {
++		dev_err(&input->dev, "Unable to read key status: %d\n", val);
++		return IRQ_HANDLED;
++	}
++
++	if (! (val & REG_POWER_PB_STATUS_MASK))
++		up = true;
++
++	input_report_key(input, KEY_POWER, !up);
++	input_sync(input);
++
++	return IRQ_HANDLED;
++}
++
++static int senoko_keypad_probe(struct platform_device *pdev)
++{
++	struct senoko *senoko = dev_get_drvdata(pdev->dev.parent);
++	struct senoko_keypad *keypad;
++	struct input_dev *input;
++	int error;
++
++	keypad = devm_kzalloc(&pdev->dev, sizeof(struct senoko_keypad),
++			      GFP_KERNEL);
++	if (!keypad)
++		return -ENOMEM;
++
++	keypad->irq = platform_get_irq(pdev, 0);
++	if (keypad->irq < 0)
++		return keypad->irq;
++
++	input = devm_input_allocate_device(&pdev->dev);
++	if (!input)
++		return -ENOMEM;
++
++	input->name = "Senoko keypad";
++	input->id.bustype = BUS_I2C;
++	input->dev.parent = &pdev->dev;
++	input_set_capability(input, EV_KEY, KEY_POWER);
++
++	keypad->senoko = senoko;
++	keypad->input = input;
++
++	error = devm_request_threaded_irq(&pdev->dev, keypad->irq,
++					  NULL, senoko_keypad_irq,
++					  IRQF_ONESHOT, "senoko-keypad", keypad);
++	if (error) {
++		dev_err(&pdev->dev, "unable to get irq: %d\n", error);
++		return error;
++	}
++
++	error = input_register_device(input);
++	if (error) {
++		dev_err(&pdev->dev,
++			"unable to register input device: %d\n", error);
++		return error;
++	}
++
++	dev_set_drvdata(&pdev->dev, keypad);
++	device_init_wakeup(&pdev->dev, 1);
++	platform_set_drvdata(pdev, keypad);
++
++	return 0;
++}
++
++static int senoko_keypad_remove(struct platform_device *pdev)
++{
++	device_init_wakeup(&pdev->dev, 0);
++
++	return 0;
++}
++
++static int senoko_keypad_suspend(struct device *dev)
++{
++	struct senoko_keypad *keypad = dev_get_drvdata(dev);
++
++        if (device_may_wakeup(dev))
++		enable_irq_wake(keypad->irq);
++
++	return 0;
++}
++
++static int senoko_keypad_resume(struct device *dev)
++{
++	struct senoko_keypad *keypad = dev_get_drvdata(dev);
++
++        if (device_may_wakeup(dev))
++		disable_irq_wake(keypad->irq);
++
++	return 0;
++}
++
++static SIMPLE_DEV_PM_OPS(senoko_keypad_pm_ops,
++			 senoko_keypad_suspend,
++			 senoko_keypad_resume);
++
++static struct platform_driver senoko_keypad_driver = {
++	.driver.name	= "senoko-keypad",
++	.driver.owner	= THIS_MODULE,
++	.driver.pm	= &senoko_keypad_pm_ops,
++	.probe		= senoko_keypad_probe,
++	.remove		= senoko_keypad_remove,
++};
++module_platform_driver(senoko_keypad_driver);
++
++MODULE_LICENSE("GPL v2");
++MODULE_DESCRIPTION("Senoko keypad driver");
++MODULE_AUTHOR("Sean Cross <xobs@kosagi.com>");
+diff --git a/drivers/mfd/Kconfig b/drivers/mfd/Kconfig
+index 11841f4b7b2b..c9b562e8b1d3 100644
+--- a/drivers/mfd/Kconfig
++++ b/drivers/mfd/Kconfig
+@@ -1177,6 +1177,21 @@ config MFD_DB8500_PRCMU
+ 	  system controller running an XP70 microprocessor, which is accessed
+ 	  through a register map.
+ 
++config MFD_SENOKO
++	tristate "Kosagi Senoko battery board"
++	depends on I2C=y
++	depends on OF
++	select MFD_CORE
++	help
++	  Support for the Kosagi Senoko battery board, which acts as a
++	  GPIO port expander, power supply, and RTC.
++
++	  Currently available sub drivers are:
++
++		GPIO: senoko-gpio
++		Keypad: senoko-keypad
++		Regulator: senoko-ts
++
+ config MFD_STMPE
+ 	bool "STMicroelectronics STMPE"
+ 	depends on (I2C=y || SPI_MASTER=y)
+diff --git a/drivers/mfd/Makefile b/drivers/mfd/Makefile
+index 5856a9489cbd..7bed8eaabc5c 100644
+--- a/drivers/mfd/Makefile
++++ b/drivers/mfd/Makefile
+@@ -27,6 +27,7 @@ obj-$(CONFIG_MFD_DAVINCI_VOICECODEC)	+= davinci_voicecodec.o
+ obj-$(CONFIG_MFD_DM355EVM_MSP)	+= dm355evm_msp.o
+ obj-$(CONFIG_MFD_TI_AM335X_TSCADC)	+= ti_am335x_tscadc.o
+ 
++obj-$(CONFIG_MFD_SENOKO)	+= senoko.o
+ obj-$(CONFIG_MFD_STA2X11)	+= sta2x11-mfd.o
+ obj-$(CONFIG_MFD_STMPE)		+= stmpe.o
+ obj-$(CONFIG_STMPE_I2C)		+= stmpe-i2c.o
+diff --git a/drivers/mfd/senoko.c b/drivers/mfd/senoko.c
+new file mode 100644
+index 000000000000..3c1383695034
+--- /dev/null
++++ b/drivers/mfd/senoko.c
+@@ -0,0 +1,647 @@
++/*
++ * Kosagi Senoko battery board
++ *
++ * Copyright 2015 Sutajio Ko-Usagi PTE Ltd.
++ *
++ * Licensed under the GPL-2 or later.
++ */
++
++#include <linux/delay.h>
++#include <linux/gpio.h>
++#include <linux/init.h>
++#include <linux/i2c.h>
++#include <linux/interrupt.h>
++#include <linux/irq.h>
++#include <linux/kernel.h>
++#include <linux/mfd/core.h>
++#include <linux/module.h>
++#include <linux/of_gpio.h>
++#include <linux/regmap.h>
++#include <linux/slab.h>
++#include <linux/workqueue.h>
++
++#define BACKOFF_MS 800
++
++/*
++ * IRQ 0: GPIO
++ * IRQ 1: Keypad
++ * IRQ 2: Power supply
++ * IRQ 3: Wake alarm
++ */
++enum senoko_irq {
++	senoko_gpio_irq = 0,
++	senoko_keypad_irq = 1,
++	senoko_senoko_power_supply_irq = 2,
++	senoko_rtc_irq = 3,
++	__senoko_num_irqs = 4,
++};
++
++struct i2c_registers {
++	uint8_t signature;		/* 0x00 */
++	uint8_t version_major;		/* 0x01 */
++	uint8_t version_minor;		/* 0x02 */
++	uint8_t features;		/* 0x03 */
++	uint8_t uptime[4];		/* 0x04 - 0x07 */
++	uint8_t irq_enable;		/* 0x08 */
++	uint8_t irq_status;		/* 0x09 */
++	uint8_t padding0[5];		/* 0x0a - 0x0e */
++	uint8_t power;			/* 0x0f */
++
++	/* -- GPIO block -- */
++	uint8_t gpio_dir_a;		/* 0x10 */
++	uint8_t gpio_dir_b;		/* 0x11 */
++	uint8_t gpio_val_a;		/* 0x12 */
++	uint8_t gpio_val_b;		/* 0x13 */
++	uint8_t gpio_irq_rise_a;	/* 0x14 */
++	uint8_t gpio_irq_rise_b;	/* 0x15 */
++	uint8_t gpio_irq_fall_a;	/* 0x16 */
++	uint8_t gpio_irq_fall_b;	/* 0x17 */
++	uint8_t gpio_irq_stat_a;	/* 0x18 */
++	uint8_t gpio_irq_stat_b;	/* 0x19 */
++	uint8_t gpio_pull_ena_a;	/* 0x1a */
++	uint8_t gpio_pull_ena_b;	/* 0x1b */
++	uint8_t gpio_pull_dir_a;	/* 0x1c */
++	uint8_t gpio_pull_dir_b;	/* 0x1d */
++	uint8_t padding1[2];		/* 0x1e - 0x1f */
++
++	/* -- RTC block -- */
++	uint8_t seconds[4];		/* 0x20 - 0x23 */
++	uint8_t alarm_seconds[4];	/* 0x24 - 0x27 */
++	uint8_t wdt_seconds;		/* 0x28 */
++};
++
++struct senoko {
++	struct i2c_client *client;
++	struct device *dev;
++	struct irq_domain *domain;
++
++	/* protect serialized access to the interrupt controller bus */
++	struct mutex irq_lock;
++
++	int num_irqs;
++	int irq_gpio;
++	enum of_gpio_flags irq_trigger;
++	int irq;
++	struct delayed_work reenable_work;
++
++	/* IRQ Enable Register */
++	int ier;
++	int oldier;
++
++	/* IRQ Wake Register, which IRQs are active during suspend */
++	int iwr;
++
++	/* A list of reported features */
++	int features;
++
++	struct regmap *regmap;
++
++	/* Previous pm_power_off function */
++	void (*old_power_off)(void);
++};
++
++static struct senoko *g_senoko;
++
++#define REG_SIGNATURE			0x00
++#define REG_VERSION_MAJOR		0x01
++#define REG_VERSION_MINOR		0x02
++#define REG_FEATURES			0x03
++#define REG_FEATURES_BATTERY		(1 << 0)
++#define REG_FEATURES_GPIO		(1 << 1)
++
++#define REG_IRQ_ENABLE			0x08
++#define REG_IRQ_STATUS			0x09
++#define REG_IRQ_GPIO_MASK		(1 << 0)
++#define REG_IRQ_KEYPAD_MASK		(1 << 1)
++#define REG_IRQ_POWER_MASK		(1 << 2)
++#define REG_IRQ_ALARM_MASK		(1 << 3)
++
++#define REG_POWER			0x0f
++#define REG_POWER_STATE_MASK		(3 << 0)
++#define REG_POWER_STATE_ON		(0 << 0)
++#define REG_POWER_STATE_OFF		(1 << 0)
++#define REG_POWER_STATE_REBOOT		(2 << 0)
++#define REG_POWER_WDT_MASK		(1 << 2)
++#define REG_POWER_WDT_DISABLE		(0 << 2)
++#define REG_POWER_WDT_ENABLE		(1 << 2)
++#define REG_POWER_WDT_STATE		(1 << 2)
++#define REG_POWER_AC_STATUS_MASK	(1 << 3)
++#define REG_POWER_AC_STATUS_SHIFT	(3)
++#define REG_POWER_PB_STATUS_MASK	(1 << 4)
++#define REG_POWER_PB_STATUS_SHIFT	(4)
++#define REG_POWER_KEY_MASK		(3 << 6)
++#define REG_POWER_KEY_READ		(1 << 6)
++#define REG_POWER_KEY_WRITE		(2 << 6)
++
++#define REG_WATCHDOG_SECONDS		0x28
++
++static bool senoko_regmap_is_volatile(struct device *dev, unsigned int reg)
++{
++        switch (reg) {
++        case REG_SIGNATURE:
++	case REG_VERSION_MAJOR:
++	case REG_VERSION_MINOR:
++	case REG_FEATURES:
++                return false;
++        default:
++                return true;
++        }
++}
++
++static bool senoko_regmap_is_writeable(struct device *dev, unsigned int reg)
++{
++        switch (reg) {
++        case REG_IRQ_ENABLE:
++	case REG_IRQ_STATUS:
++	case REG_POWER:
++	case REG_WATCHDOG_SECONDS:
++                return true;
++        default:
++                return false;
++        }
++}
++
++static struct regmap_config senoko_regmap_config = {
++	.reg_bits = 8,
++	.val_bits = 8,
++	.cache_type = REGCACHE_RBTREE,
++	.max_register = REG_WATCHDOG_SECONDS,
++	.writeable_reg = senoko_regmap_is_writeable,
++	.volatile_reg = senoko_regmap_is_volatile,
++};
++
++static struct resource senoko_gpio_resources[] = {
++	/* Start and end filled dynamically */
++	{
++		.flags	= IORESOURCE_IRQ,
++	},
++};
++
++static const struct mfd_cell senoko_gpio_cell = {
++	.name		= "senoko-gpio",
++	.of_compatible	= "kosagi,senoko-gpio",
++	.resources	= senoko_gpio_resources,
++	.num_resources	= ARRAY_SIZE(senoko_gpio_resources),
++};
++
++static struct resource senoko_keypad_resources[] = {
++	/* Start and end filled dynamically */
++	{
++		.flags	= IORESOURCE_IRQ,
++	},
++};
++
++static const struct mfd_cell senoko_keypad_cell = {
++	.name		= "senoko-keypad",
++	.of_compatible	= "kosagi,senoko-keypad",
++	.resources	= senoko_keypad_resources,
++	.num_resources	= ARRAY_SIZE(senoko_keypad_resources),
++};
++
++static struct resource senoko_senoko_power_supply_resources[] = {
++	/* Start and end filled dynamically */
++	{
++		.flags	= IORESOURCE_IRQ,
++	},
++};
++
++static const struct mfd_cell senoko_senoko_power_supply_cell = {
++	.name		= "senoko-power-supply",
++	.of_compatible	= "kosagi,senoko-power-supply",
++	.resources	= senoko_senoko_power_supply_resources,
++	.num_resources	= ARRAY_SIZE(senoko_senoko_power_supply_resources),
++};
++
++static struct resource senoko_rtc_resources[] = {
++	/* Start and end filled dynamically */
++	{
++		.flags	= IORESOURCE_IRQ,
++	},
++};
++
++static const struct mfd_cell senoko_rtc_cell = {
++	.name		= "senoko-rtc",
++	.of_compatible	= "kosagi,senoko-rtc",
++	.resources	= senoko_rtc_resources,
++	.num_resources	= ARRAY_SIZE(senoko_rtc_resources),
++};
++
++int senoko_read(struct senoko *senoko, int offset)
++{
++	unsigned int value;
++	int ret;
++
++	ret = regmap_read(senoko->regmap, offset, &value);
++	if (ret < 0)
++		return ret;
++
++	return value;
++}
++EXPORT_SYMBOL(senoko_read);
++
++int senoko_write(struct senoko *senoko, int offset, u8 value)
++{
++	return regmap_write(senoko->regmap, offset, value);
++}
++EXPORT_SYMBOL(senoko_write);
++
++static void senoko_supply_power_off(void)
++{
++	struct senoko *senoko = g_senoko;
++	int err;
++	uint32_t sleep_counter = 0;
++	uint32_t sleep_counter_increment = 10000;
++
++	dev_info(senoko->dev, "shutting down\n");
++	regcache_cache_bypass(senoko->regmap, true);
++
++	while (1) {
++		err = senoko_write(senoko, REG_POWER,
++				   REG_POWER_STATE_OFF | REG_POWER_KEY_WRITE);
++
++		/* Board should be off now */
++
++		/* But in any case, sometimes i2c is blocked, so sleep for
++		 * an ever-increasing amount of time, trying to re-send
++		 * the power-off message.
++		 */
++		sleep_counter += sleep_counter_increment;
++		udelay(sleep_counter);
++	}
++}
++
++static void senoko_irq_reenable(struct work_struct *work)
++{
++	struct senoko *senoko = container_of(work, struct senoko,
++				  reenable_work.work);
++	dev_dbg(senoko->dev, "Re-enabling IRQ\n");
++	enable_irq(senoko->irq);
++}
++
++static irqreturn_t senoko_irq_handler(int irq_num, void *devid)
++{
++	struct senoko *senoko = devid;
++	unsigned irq;
++	int status;
++
++	status = senoko_read(senoko, REG_IRQ_STATUS);
++
++	if (status < 0) {
++		/*
++		 * This happens when we reflash Senoko, so ignore
++		 * this condition.
++		 */
++		dev_err(senoko->dev,
++			"Error when reading IRQ status: %d\n", status);
++		disable_irq_nosync(irq_num);
++		schedule_delayed_work(&senoko->reenable_work,
++				      msecs_to_jiffies(BACKOFF_MS));
++		return IRQ_HANDLED;
++	}
++
++	dev_dbg(senoko->dev, "IRQ status: %d\n", status);
++
++	for (irq = 0; irq < senoko->num_irqs; irq++) {
++		if (status & (1 << irq)) {
++			int child_irq = irq_create_mapping(senoko->domain, irq);
++			handle_nested_irq(child_irq);
++			status &= ~(1 << irq);
++		}
++	}
++
++	senoko_write(senoko, REG_IRQ_STATUS, status);
++
++	return IRQ_HANDLED;
++}
++
++static void senoko_irq_lock(struct irq_data *data)
++{
++	struct senoko *senoko = irq_data_get_irq_chip_data(data);
++
++	mutex_lock(&senoko->irq_lock);
++}
++
++static void senoko_irq_sync_unlock(struct irq_data *data)
++{
++	struct senoko *senoko = irq_data_get_irq_chip_data(data);
++
++	u8 new = senoko->ier;
++	u8 old = senoko->oldier;
++
++	if (new != old) {
++		senoko->oldier = new;
++		senoko_write(senoko, REG_IRQ_ENABLE, new);
++	}
++
++	mutex_unlock(&senoko->irq_lock);
++}
++
++static void senoko_irq_mask(struct irq_data *data)
++{
++	struct senoko *senoko = irq_data_get_irq_chip_data(data);
++	int offset = data->hwirq;
++	int mask = 1 << (offset % 8);
++
++	senoko->ier &= ~mask;
++}
++
++static void senoko_irq_unmask(struct irq_data *data)
++{
++	struct senoko *senoko = irq_data_get_irq_chip_data(data);
++	int offset = data->hwirq;
++	int mask = 1 << (offset % 8);
++
++	senoko->ier |= mask;
++}
++
++int senoko_irq_set_wake(struct irq_data *data, unsigned int on)
++{
++	struct senoko *senoko = irq_data_get_irq_chip_data(data);
++	int offset = data->hwirq;
++	int mask = 1 << (offset % 8);
++
++	if (on)
++		senoko->iwr |= mask;
++	else
++		senoko->iwr &= ~mask;
++	return 0;
++}
++
++static void senoko_irq_ack(struct irq_data *data)
++{
++}
++
++static struct irq_chip senoko_irq_chip = {
++	.name			= "senoko",
++	.irq_bus_lock		= senoko_irq_lock,
++	.irq_bus_sync_unlock	= senoko_irq_sync_unlock,
++	.irq_mask		= senoko_irq_mask,
++	.irq_set_wake		= senoko_irq_set_wake,
++	.irq_unmask		= senoko_irq_unmask,
++	.irq_ack		= senoko_irq_ack,
++};
++
++static int senoko_irq_map(struct irq_domain *d, unsigned int virq,
++				irq_hw_number_t hwirq)
++{
++	struct senoko *senoko = d->host_data;
++	struct irq_chip *chip = NULL;
++
++	chip = &senoko_irq_chip;
++
++	irq_set_chip_data(virq, senoko);
++	irq_set_chip_and_handler(virq, chip, handle_edge_irq);
++	irq_set_nested_thread(virq, 1);
++	irq_set_noprobe(virq);
++
++	return 0;
++}
++
++static void senoko_irq_unmap(struct irq_domain *d, unsigned int virq)
++{
++	irq_set_chip_and_handler(virq, NULL, NULL);
++	irq_set_chip_data(virq, NULL);
++}
++
++static struct irq_domain_ops senoko_irq_ops = {
++	.map	= senoko_irq_map,
++	.unmap	= senoko_irq_unmap,
++	.xlate	= irq_domain_xlate_twocell,
++};
++
++static int senoko_irq_init(struct senoko *senoko, struct device_node *np)
++{
++	int base = 0;
++	int num_irqs = senoko->num_irqs;
++
++	INIT_DELAYED_WORK(&senoko->reenable_work, senoko_irq_reenable);
++
++	senoko->domain = irq_domain_add_simple(np, num_irqs, base,
++					       &senoko_irq_ops, senoko);
++	if (!senoko->domain) {
++		dev_err(senoko->dev, "Failed to create irqdomain\n");
++		return -ENOSYS;
++	}
++
++	/* Pre-acknowledge all IRQs */
++	senoko_write(senoko, REG_IRQ_STATUS, 0);
++
++	return 0;
++}
++
++static void senoko_resource_irq_update(const struct mfd_cell *cell, int irq)
++{
++	int j;
++	for (j = 0; j < cell->num_resources; j++) {
++		struct resource *res = (struct resource *) &cell->resources[j];
++
++		/* Dynamically fill in a block's IRQ. */
++		if (res->flags & IORESOURCE_IRQ)
++			res->start = res->end = irq + j;
++	}
++}
++
++static int senoko_devices_init(struct senoko *senoko)
++{
++	int ret = -EINVAL;
++	int blocknum = 0;
++
++	senoko_resource_irq_update(&senoko_gpio_cell, senoko_gpio_irq);
++	ret = mfd_add_devices(senoko->dev, blocknum++,
++			      &senoko_gpio_cell, 1, NULL, 0, senoko->domain);
++	if (ret)
++		return ret;
++
++	senoko_resource_irq_update(&senoko_keypad_cell, senoko_keypad_irq);
++	ret = mfd_add_devices(senoko->dev, blocknum++,
++			      &senoko_keypad_cell, 1, NULL, 0, senoko->domain);
++	if (ret)
++		return ret;
++
++	senoko_resource_irq_update(&senoko_senoko_power_supply_cell,
++				   senoko_senoko_power_supply_irq);
++	ret = mfd_add_devices(senoko->dev, blocknum++,
++			      &senoko_senoko_power_supply_cell,
++			      1, NULL, 0, senoko->domain);
++	if (ret)
++		return ret;
++
++	senoko_resource_irq_update(&senoko_rtc_cell, senoko_rtc_irq);
++	ret = mfd_add_devices(senoko->dev, blocknum++,
++			      &senoko_rtc_cell, 1, NULL, 0, senoko->domain);
++	if (ret)
++		return ret;
++
++	return ret;
++}
++
++static int senoko_probe(struct i2c_client *client,
++			const struct i2c_device_id *id)
++{
++	struct senoko *senoko;
++	struct device_node *np = client->dev.of_node;
++	int ret;
++	int signature, ver_major, ver_minor;
++
++	senoko = devm_kzalloc(&client->dev, sizeof(*senoko), GFP_KERNEL);
++	if (senoko == NULL)
++		return -ENOMEM;
++
++	dev_set_drvdata(&client->dev, senoko);
++
++	mutex_init(&senoko->irq_lock);
++
++	senoko->client = client;
++	senoko->num_irqs = __senoko_num_irqs;
++	senoko->dev = &client->dev;
++
++	i2c_set_clientdata(client, senoko);
++
++	senoko->regmap = devm_regmap_init_i2c(client, &senoko_regmap_config);
++	if (IS_ERR(senoko->regmap)) {
++		dev_err(senoko->dev, "unable to allocate register map: %ld\n",
++			PTR_ERR(senoko->regmap));
++		return PTR_ERR(senoko->regmap);
++	}
++
++	senoko->features = senoko_read(senoko, REG_FEATURES);
++	if (senoko->features < 0) {
++		dev_err(senoko->dev, "unable to read features: %d\n",
++			senoko->features);
++		return -ENODEV;
++	}
++
++	signature = senoko_read(senoko, REG_SIGNATURE);
++	if (signature < 0) {
++		dev_err(senoko->dev, "unable to read signature: %d\n",
++			signature);
++		return -ENODEV;
++	}
++
++	ver_major = senoko_read(senoko, REG_VERSION_MAJOR);
++	if (ver_major < 0) {
++		dev_err(senoko->dev, "unable to read major version: %d\n",
++			ver_major);
++		return -ENODEV;
++	}
++
++	ver_minor = senoko_read(senoko, REG_VERSION_MINOR);
++	if (ver_minor < 0) {
++		dev_err(senoko->dev, "unable to read minor version: %d\n",
++			ver_minor);
++		return -ENODEV;
++	}
++
++	dev_info(senoko->dev, "senoko '%c' version %d.%d (features: 0x%02x)\n",
++		signature, ver_major, ver_minor, senoko->features);
++
++	senoko->irq_gpio = of_get_named_gpio_flags(np, "irq-gpio", 0,
++						   &senoko->irq_trigger);
++	dev_dbg(senoko->dev, "GPIO IRQ: %d\n", senoko->irq_gpio);
++	dev_dbg(senoko->dev, "GPIO IRQ trigger: %x\n", senoko->irq_trigger);
++	ret = devm_gpio_request_one(&client->dev, senoko->irq_gpio,
++				    GPIOF_DIR_IN, "senoko");
++	if (ret) {
++		dev_err(senoko->dev, "failed to request IRQ GPIO: %d\n", ret);
++		goto err_free;
++	}
++	senoko->irq = gpio_to_irq(senoko->irq_gpio);
++
++	senoko_irq_init(senoko, np);
++	ret = devm_request_threaded_irq(senoko->dev, senoko->irq, NULL,
++			senoko_irq_handler, IRQF_TRIGGER_HIGH | IRQF_ONESHOT,
++			"senoko", senoko);
++	if (ret) {
++		dev_err(&client->dev, "unable to get irq: %d\n", ret);
++		goto err_domain;
++	}
++
++	ret = senoko_devices_init(senoko);
++	if (ret) {
++		dev_err(&client->dev, "unable to add devices: %d\n", ret);
++		goto remove_devices;
++	}
++
++	senoko->old_power_off = pm_power_off;
++	g_senoko = senoko;
++	pm_power_off = senoko_supply_power_off;
++
++	return 0;
++
++remove_devices:
++	mfd_remove_devices(senoko->dev);
++
++err_domain:
++	irq_domain_remove(senoko->domain);
++
++err_free:
++	return ret;
++}
++
++static int senoko_remove(struct i2c_client *client)
++{
++	struct senoko *senoko = i2c_get_clientdata(client);
++
++	cancel_delayed_work_sync(&senoko->reenable_work);
++	pm_power_off = senoko->old_power_off;
++	mfd_remove_devices(senoko->dev);
++	irq_domain_remove(senoko->domain);
++	return 0;
++}
++
++#ifdef CONFIG_PM_SLEEP
++static int senoko_suspend(struct device *dev)
++{
++	struct senoko *senoko = dev_get_drvdata(dev);
++
++	cancel_delayed_work_sync(&senoko->reenable_work);
++	if (senoko->iwr)
++		enable_irq_wake(senoko->irq);
++	senoko_write(senoko, REG_IRQ_ENABLE, senoko->iwr);
++
++	return 0;
++}
++
++static int senoko_resume(struct device *dev)
++{
++	struct senoko *senoko = dev_get_drvdata(dev);
++
++	if (senoko->iwr)
++		disable_irq_wake(senoko->irq);
++	senoko_write(senoko, REG_IRQ_ENABLE, senoko->ier);
++
++	return 0;
++}
++#endif
++
++static const struct of_device_id senoko_of_match[] = {
++	{ .compatible = "kosagi,senoko", },
++	{},
++};
++MODULE_DEVICE_TABLE(of, senoko_of_match);
++
++static const struct i2c_device_id senoko_id[] = {
++	{"senoko", 0},
++	{}
++};
++
++MODULE_DEVICE_TABLE(i2c, senoko_id);
++
++static SIMPLE_DEV_PM_OPS(senoko_pm_ops, senoko_suspend, senoko_resume);
++
++static struct i2c_driver senoko_driver = {
++	.driver = {
++		.name = "senoko",
++		.of_match_table = senoko_of_match,
++		.pm = &senoko_pm_ops,
++	},
++	.probe = senoko_probe,
++	.remove = senoko_remove,
++	.id_table = senoko_id,
++};
++
++module_i2c_driver(senoko_driver);
++
++MODULE_AUTHOR("Sean Cross <xobs@kosagi.com>");
++MODULE_DESCRIPTION("Senoko MFD Driver");
++MODULE_LICENSE("GPL");
+diff --git a/drivers/power/supply/Kconfig b/drivers/power/supply/Kconfig
+index ff6dab0bf0dd..40786b8eaec9 100644
+--- a/drivers/power/supply/Kconfig
++++ b/drivers/power/supply/Kconfig
+@@ -418,6 +418,14 @@ config CHARGER_CPCAP
+ 	  Say Y to enable support for CPCAP PMIC charger driver for Motorola
+ 	  mobile devices such as Droid 4.
+ 
++config CHARGER_SENOKO
++	tristate "Senoko charger driver"
++	depends on MFD_SENOKO
++	help
++	  Select this to enable Senoko to act as a power regulator.
++	  Senoko contains an AC plug, and can report the state of the
++	  AC adapter, as well as provide power down/reboot features.
++
+ config CHARGER_ISP1704
+ 	tristate "ISP1704 USB Charger Detection"
+ 	depends on USB_PHY
+diff --git a/drivers/power/supply/Makefile b/drivers/power/supply/Makefile
+index a26b402c45d9..887dd0082879 100644
+--- a/drivers/power/supply/Makefile
++++ b/drivers/power/supply/Makefile
+@@ -57,6 +57,7 @@ obj-$(CONFIG_BATTERY_TWL4030_MADC)	+= twl4030_madc_battery.o
+ obj-$(CONFIG_CHARGER_88PM860X)	+= 88pm860x_charger.o
+ obj-$(CONFIG_CHARGER_PCF50633)	+= pcf50633-charger.o
+ obj-$(CONFIG_BATTERY_JZ4740)	+= jz4740-battery.o
++obj-$(CONFIG_CHARGER_SENOKO) += senoko_power_supply.o
+ obj-$(CONFIG_BATTERY_RX51)	+= rx51_battery.o
+ obj-$(CONFIG_AB8500_BM)		+= ab8500_bmdata.o ab8500_charger.o ab8500_fg.o ab8500_btemp.o abx500_chargalg.o pm2301_charger.o
+ obj-$(CONFIG_CHARGER_CPCAP)	+= cpcap-charger.o
+diff --git a/drivers/power/supply/senoko_power_supply.c b/drivers/power/supply/senoko_power_supply.c
+new file mode 100644
+index 000000000000..0fdd55d6a1c7
+--- /dev/null
++++ b/drivers/power/supply/senoko_power_supply.c
+@@ -0,0 +1,240 @@
++/*
++ * Copyright (C) 2011-2013 Freescale Semiconductor, Inc. All Rights Reserved.
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation; either version 2 of the License, or
++ * (at your option) any later version.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with this program; if not, write to the Free Software
++ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
++ */
++#include <linux/kernel.h>
++#include <linux/module.h>
++#include <linux/init.h>
++#include <linux/interrupt.h>
++#include <linux/irq.h>
++#include <linux/of.h>
++#include <linux/of_device.h>
++#include <linux/platform_device.h>
++#include <linux/power_supply.h>
++
++struct senoko;
++
++int senoko_read(struct senoko *senoko, int offset);
++int senoko_write(struct senoko *senoko, int offset, u8 value);
++
++#define REG_POWER                       0x0f
++#define REG_POWER_STATE_MASK            (3 << 0)
++#define REG_POWER_STATE_ON              (0 << 0)
++#define REG_POWER_STATE_OFF             (1 << 0)
++#define REG_POWER_STATE_REBOOT          (2 << 0)
++#define REG_POWER_WDT_MASK              (1 << 2)
++#define REG_POWER_WDT_DISABLE           (0 << 2)
++#define REG_POWER_WDT_ENABLE            (1 << 2)
++#define REG_POWER_WDT_STATE             (1 << 2)
++#define REG_POWER_AC_STATUS_MASK        (1 << 3)
++#define REG_POWER_AC_STATUS_SHIFT       (3)
++#define REG_POWER_PB_STATUS_MASK        (1 << 4)
++#define REG_POWER_PB_STATUS_SHIFT       (4)
++#define REG_POWER_KEY_MASK              (3 << 6)
++#define REG_POWER_KEY_READ              (1 << 6)
++#define REG_POWER_KEY_WRITE             (2 << 6)
++
++struct senoko_power_supply {
++	struct senoko *senoko;
++	struct regmap *regmap;
++	struct device *dev;
++	bool wakeup_enabled;
++	struct work_struct work;
++	struct power_supply *supply;
++	struct power_supply_desc supply_desc;
++	int num_supplicants;
++	int irq;
++	char **supplicant_names;
++	void (*old_power_off)(void);
++};
++
++static enum power_supply_property senoko_power_supply_props[] = {
++	POWER_SUPPLY_PROP_ONLINE,
++};
++
++static void senoko_supply_post_change(struct work_struct *_work)
++{
++	struct senoko_power_supply *ss;
++	ss = container_of(_work, struct senoko_power_supply, work);
++	power_supply_changed(ss->supply);
++}
++
++static irqreturn_t senoko_supply_changed(int irq, void *devid)
++{
++	struct senoko_power_supply *ss = devid;
++
++	schedule_work(&ss->work);
++
++	return IRQ_HANDLED;
++}
++
++static int senoko_get_property(struct power_supply *psy,
++			       enum power_supply_property psp,
++			       union power_supply_propval *val)
++{
++	struct senoko_power_supply *ss;
++	int ret;
++
++	ss = power_supply_get_drvdata(psy);
++
++	switch (psp) {
++	case POWER_SUPPLY_PROP_ONLINE:
++		ret = senoko_read(ss->senoko, REG_POWER);
++		if (ret < 0)
++			return -ENODATA;
++
++		val->intval = !!(ret & REG_POWER_AC_STATUS_MASK);
++		break;
++	default:
++		return -EINVAL;
++	}
++
++	return 0;
++}
++
++static int senoko_power_supply_probe(struct platform_device *pdev)
++{
++	struct senoko_power_supply *ss;
++	struct power_supply_desc *desc;
++	struct power_supply_config psy_cfg = {};
++	struct device_node *np = pdev->dev.parent->of_node;
++	int ret;
++
++	ss = devm_kzalloc(&pdev->dev, sizeof(*ss), GFP_KERNEL);
++	if (!ss)
++		return -ENOMEM;
++
++	ss->irq = platform_get_irq(pdev, 0);
++	if (ss->irq < 0)
++		return ss->irq;
++
++	ss->senoko = dev_get_drvdata(pdev->dev.parent);
++	ss->dev = &pdev->dev;
++	INIT_WORK(&ss->work, senoko_supply_post_change);
++
++	desc = &ss->supply_desc;
++
++	desc->name = "senoko-ac-supply";
++	desc->type = POWER_SUPPLY_TYPE_MAINS;
++	desc->properties = senoko_power_supply_props;
++	desc->num_properties = ARRAY_SIZE(senoko_power_supply_props);
++	desc->get_property = senoko_get_property;
++
++	ss->num_supplicants = of_property_count_strings(np, "supplied-to");
++	if (ss->num_supplicants > 0) {
++		int i;
++		int count = ss->num_supplicants;
++		char **names = devm_kzalloc(&pdev->dev,
++					    count * sizeof(*names),
++					    GFP_KERNEL);
++		for (i = 0; i < count; i++) {
++			const char *s;
++			of_property_read_string_index(np, "supplied-to", i, &s);
++			names[i] = devm_kstrdup(&pdev->dev, s, GFP_KERNEL);
++		}
++		ss->supplicant_names = names;
++	}
++
++	psy_cfg.supplied_to = ss->supplicant_names;
++	psy_cfg.num_supplicants = ss->num_supplicants;
++	psy_cfg.drv_data = ss;
++
++	ss->supply = power_supply_register(ss->dev, desc, &psy_cfg);
++	if (IS_ERR(ss->supply)) {
++		ret = PTR_ERR(ss->supply);
++		dev_err(&pdev->dev, "failed to register supply: %d\n", ret);
++		return ret;
++	}
++
++	platform_set_drvdata(pdev, ss);
++	dev_set_drvdata(&pdev->dev, ss);
++
++	ret = devm_request_threaded_irq(&pdev->dev, ss->irq, NULL,
++					senoko_supply_changed,
++					IRQF_ONESHOT,
++					"senoko-supply", ss);
++
++        if (ret < 0) {
++		dev_err(&pdev->dev, "unable to request irq: %d\n", ret);
++		return ret;
++	}
++
++	device_init_wakeup(&pdev->dev, 0);
++
++	schedule_work(&ss->work);
++
++	return 0;
++}
++
++static int senoko_power_supply_remove(struct platform_device *pdev)
++{
++	struct senoko_power_supply *ss = platform_get_drvdata(pdev);
++
++	pm_power_off = ss->old_power_off;
++	cancel_work_sync(&ss->work);
++	power_supply_unregister(ss->supply);
++	device_init_wakeup(&pdev->dev, 0);
++
++	return 0;
++}
++
++static int senoko_power_supply_suspend(struct device *dev)
++{
++	struct senoko_power_supply *ss = dev_get_drvdata(dev);
++
++	if (device_may_wakeup(dev))
++		enable_irq_wake(ss->irq);
++
++	return 0;
++}
++
++static int senoko_power_supply_resume(struct device *dev)
++{
++	struct senoko_power_supply *ss = dev_get_drvdata(dev);
++
++	if (device_may_wakeup(dev))
++		disable_irq_wake(ss->irq);
++
++	schedule_work(&ss->work);
++
++	return 0;
++}
++
++static SIMPLE_DEV_PM_OPS(senoko_power_supply_pm_ops,
++			 senoko_power_supply_suspend,
++			 senoko_power_supply_resume);
++
++static const struct of_device_id senoko_dt_ids[] = {
++	{ .compatible = "kosagi,senoko-power-supply" },
++	{ }
++};
++MODULE_DEVICE_TABLE(of, senoko_dt_ids);
++
++static struct platform_driver senoko_power_supply_driver = {
++	.driver = {
++		.name		= "senoko-power-supply",
++		.owner		= THIS_MODULE,
++		.of_match_table	= senoko_dt_ids,
++		.pm 		= &senoko_power_supply_pm_ops,
++	},
++	.probe = senoko_power_supply_probe,
++	.remove = senoko_power_supply_remove,
++};
++module_platform_driver(senoko_power_supply_driver);
++
++MODULE_AUTHOR("Sean Cross <xobs@kosagi.com>");
++MODULE_DESCRIPTION("Power supply driver for Kosagi Senoko");
++MODULE_LICENSE("GPL v2");
+-- 
+2.20.1
+

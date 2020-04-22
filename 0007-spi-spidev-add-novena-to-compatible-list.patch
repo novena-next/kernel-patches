@@ -1,0 +1,34 @@
+From 3c642dab60d1e686b7c449cebcc3537947800cdb Mon Sep 17 00:00:00 2001
+From: Sean Cross <xobs@kosagi.com>
+Date: Fri, 8 Jan 2016 11:53:16 +0800
+Subject: [PATCH 07/17] spi: spidev: add novena to compatible list
+
+The Novena FPGA is connected via SPI, and being an FPGA, it can
+be reconfigured to be anything.  Therefore, it is easiest to
+treat it as a generic SPI device, accessible from userspace.
+
+Add kosagi,novena-fpga-spidev to the "compatible" list in order
+to allow Novena to boot with a spidev device without generating
+a warning on boot.
+
+Signed-off-by: Sean Cross <xobs@kosagi.com>
+(Jookia: Ported to v4.14)
+---
+ drivers/spi/spidev.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/drivers/spi/spidev.c b/drivers/spi/spidev.c
+index cda10719d1d1..3148ec866a00 100644
+--- a/drivers/spi/spidev.c
++++ b/drivers/spi/spidev.c
+@@ -669,6 +669,7 @@ static const struct of_device_id spidev_dt_ids[] = {
+ 	{ .compatible = "lineartechnology,ltc2488" },
+ 	{ .compatible = "ge,achc" },
+ 	{ .compatible = "semtech,sx1301" },
++	{ .compatible = "kosagi,novena-fpga-spidev" },
+ 	{},
+ };
+ MODULE_DEVICE_TABLE(of, spidev_dt_ids);
+-- 
+2.20.1
+
