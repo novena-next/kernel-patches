@@ -1,0 +1,31 @@
+From aa99d6114f384d33157f121d99d14d384d9bf11e Mon Sep 17 00:00:00 2001
+From: Robin Gong <yibin.gong@nxp.com>
+Date: Wed, 10 Oct 2018 10:32:48 +0000
+Subject: [PATCH 3/5] spi: imx: use PIO mode if size is small
+
+Use PIO mode instead if size is smaller than fifo size, since
+dma may be less efficient.
+
+Signed-off-by: Robin Gong <yibin.gong@nxp.com>
+Signed-off-by: Mark Brown <broonie@kernel.org>
+---
+ drivers/spi/spi-imx.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/drivers/spi/spi-imx.c b/drivers/spi/spi-imx.c
+index 685739d7d306..d8c375e42034 100644
+--- a/drivers/spi/spi-imx.c
++++ b/drivers/spi/spi-imx.c
+@@ -224,6 +224,9 @@ static bool spi_imx_can_dma(struct spi_master *master, struct spi_device *spi,
+ 	if (spi_imx->slave_mode)
+ 		return false;
+ 
++	if (transfer->len < spi_imx->devtype_data->fifo_size)
++		return false;
++
+ 	spi_imx->dynamic_burst = 0;
+ 
+ 	return true;
+-- 
+2.33.0
+
